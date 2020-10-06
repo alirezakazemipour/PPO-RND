@@ -41,6 +41,7 @@ class Model(nn.Module):
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         # x = F.relu((self.conv3(x)))
+        x = x.contiguous()
         x = x.view(x.size(0), -1)
         x = F.relu(self.fc(x))
         value = self.value(x)
