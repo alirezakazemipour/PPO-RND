@@ -9,10 +9,10 @@ from torch.utils.tensorboard import SummaryWriter
 from test_policy import evaluate_policy
 from play import Play
 
-env_name = "BreakoutNoFrameskip-v4"
+env_name = "MontezumaRevengeNoFrameskip-v4"
 test_env = gym.make(env_name)
 n_actions = test_env.action_space.n
-n_workers = 8
+n_workers = 2
 state_shape = (84, 84, 4)
 device = "cuda"
 iterations = int(2e4)

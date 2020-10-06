@@ -50,6 +50,38 @@ def make_atari(env_id):
     return env
 
 
+class StickyActionEnv:
+    def __init__(self, env, p=0.25):
+        self.env = env
+        self.unwrapped = self.env.unwrapped
+        self.observation_space = env.observation_space
+        self.ale = self.env.ale
+        self.action_space = self.env.action_space
+        self._max_episode_steps = self.env._max_episode_steps
+        self.p = p
+        self.last_action = 0
+
+    def step(self, action):
+        if np.random.uniform() < self.p:
+            action = self.last_action
+        else:
+            self.last_action = action
+        return self.env.step(action)
+
+    def reset(self):
+        self.last_action = 0
+        return self.env.reset()
+
+    def render(self):
+        self.env.render()
+
+    def close(self):
+        self.env.close()
+
+    def seed(self, seed):
+        self.env.seed(seed)
+
+
 class RepeatActionEnv:
     def __init__(self, env):
         self.env = env
@@ -102,48 +134,16 @@ class MontezumaVisitedRoomEnv:
     def step(self, action):
         state, reward, done, info = self.env.step(action)
         ram = self.unwrapped.ale.getRAM()
-        assert ram == 128
+        assert len(ram) == 128
         self.visited_rooms.add(ram[self.room_address])
         if done:
             if "episode" not in info:
-                info["episode"] = None
+                info["episode"] = {}
             info["episode"].update(visited_room=deepcopy(self.visited_rooms))
             self.visited_rooms = []
         return state, reward, done, info
 
     def reset(self):
-        self.env.reset()
-
-    def render(self):
-        self.env.render()
-
-    def close(self):
-        self.env.close()
-
-    def seed(self, seed):
-        self.env.seed(seed)
-
-
-class StickyActionEnv:
-    def __init__(self, env, p=0.25):
-        self.env = env
-        self.unwrapped = self.env.unwrapped
-        self.observation_space = env.observation_space
-        self.ale = self.env.ale
-        self.action_space = self.env.action_space
-        self._max_episode_steps = self.env._max_episode_steps
-        self.p = p
-        self.last_action = None
-
-    def step(self, action):
-        if np.random.uniform() < self.p:
-            action = self.last_action
-        else:
-            self.last_action = action
-        return self.env.step(action)
-
-    def reset(self):
-        self.last_action = 0
         return self.env.reset()
 
     def render(self):
