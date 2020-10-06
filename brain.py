@@ -13,7 +13,7 @@ class Brain:
         self.n_actions = n_actions
         self.device = device
         self.n_workers = n_workers
-        self.mini_batch_size = 32
+        self.mini_batch_size = 4
         self.epochs = epochs
         self.n_iters = n_iters
         self.initial_epsilon = epsilon
