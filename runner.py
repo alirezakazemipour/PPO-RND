@@ -2,11 +2,12 @@ from utils import *
 
 
 class Worker:
-    def __init__(self, id, state_shape, env_name):
+    def __init__(self, id, state_shape, env_name, max_episode_steps):
         self.id = id
         self.env_name = env_name
+        self.max_episode_steps = max_episode_steps
         self.state_shape = state_shape
-        self.env = make_atari(self.env_name)
+        self.env = make_atari(self.env_name, self.max_episode_steps)
         self.lives = self.env.ale.lives()
         # self.env = gym.make(self.env_name)
         self._stacked_states = np.zeros(self.state_shape, dtype=np.uint8)

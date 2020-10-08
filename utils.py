@@ -141,7 +141,7 @@ class MontezumaVisitedRoomEnv:
             if "episode" not in info:
                 info["episode"] = {}
             info["episode"].update(visited_room=deepcopy(self.visited_rooms))
-            self.visited_rooms = []
+            self.visited_rooms.clear()
         return state, reward, done, info
 
     def reset(self):
@@ -220,3 +220,16 @@ def update_mean_var_count_from_moments(mean, var, count, batch_mean, batch_var, 
     new_count = tot_count
 
     return new_mean, new_var, new_count
+
+
+class RewardForwardFilter(object):
+    def __init__(self, gamma):
+        self.rewems = None
+        self.gamma = gamma
+
+    def update(self, rews):
+        if self.rewems is None:
+            self.rewems = rews
+        else:
+            self.rewems = self.rewems * self.gamma + rews
+        return self.rewems
