@@ -28,7 +28,9 @@ ext_gamma = 0.999
 int_gamma = 0.99
 ext_adv_coeff = 2
 int_adv_coeff = 1
+ent_coeff = 0.001
 clip_range = 0.1
+predictor_proportion = 0.25
 pre_normalization_steps = 50
 LOAD_FROM_CKP = False
 Train = True
@@ -40,7 +42,7 @@ def run_workers(worker, conn):
 
 if __name__ == '__main__':
     brain = Brain(stacked_state_shape, state_shape, n_actions, device, n_workers, epochs, iterations, clip_range, lr,
-                  ext_gamma, int_gamma, int_adv_coeff, ext_adv_coeff, batch_size)
+                  ext_gamma, int_gamma, int_adv_coeff, ext_adv_coeff, ent_coeff, batch_size, predictor_proportion)
     if Train:
         if LOAD_FROM_CKP:
             running_reward, init_iteration = brain.load_params()
@@ -113,6 +115,7 @@ if __name__ == '__main__':
             total_int_rewards = brain.normalize_int_rewards(total_int_rewards)
 
             total_states = total_states.reshape((n_workers * T,) + stacked_state_shape)
+            total_next_obs = total_next_obs.reshape((n_workers * T,) + state_shape[:2])
             total_actions = total_actions.reshape(n_workers * T)
             total_log_probs = total_actions.reshape(n_workers * T)
 
@@ -121,9 +124,9 @@ if __name__ == '__main__':
             total_loss, entropy, ev = brain.train(total_states, total_actions, total_int_rewards,
                                                   total_ext_rewards, total_dones, total_int_values, total_ext_values,
                                                   total_log_probs, next_int_values, next_ext_values, total_next_obs)
-            brain.schedule_lr()
-            brain.schedule_clip_range(iteration)
-            episode_reward = evaluate_policy(env_name, brain, state_shape)
+            # brain.schedule_lr()
+            # brain.schedule_clip_range(iteration)
+            episode_reward = evaluate_policy(env_name, brain, stacked_state_shape)
 
             if iteration == 1:
                 running_reward = episode_reward
