@@ -27,9 +27,9 @@ class Brain:
         self.int_adv_coeff = int_adv_coeff
         self.ent_coeff = ent_coeff
 
-        self.current_policy = PolicyModel(self.stacked_state_shape, self.n_actions).to(self.device)
-        self.predictor_model = PredictorModel(self.state_shape).to(self.device)
-        self.target_model = TargetModel(self.state_shape).to(self.device)
+        self.current_policy = PolicyModel(self.stacked_state_shape, self.n_actions).half().to(self.device)
+        self.predictor_model = PredictorModel(self.state_shape).half().to(self.device)
+        self.target_model = TargetModel(self.state_shape).half().to(self.device)
         for param in self.target_model.parameters():
             param.requires_grad = False
 
@@ -84,12 +84,12 @@ class Brain:
                 adv, old_log_prob, next_state in self.choose_mini_batch(states, actions, int_returns, ext_returns, advs,
                                                                         log_probs, total_next_obs):
                 state = torch.ByteTensor(state).permute([0, 3, 1, 2]).contiguous().to(self.device)
-                next_state = torch.Tensor(next_state).to(self.device)
-                action = torch.Tensor(action).to(self.device)
-                adv = torch.Tensor(adv).to(self.device)
-                int_return = torch.Tensor(int_return).to(self.device)
-                ext_return = torch.Tensor(ext_return).to(self.device)
-                old_log_prob = torch.Tensor(old_log_prob).to(self.device)
+                next_state = torch.HalfTensor(next_state).to(self.device)
+                action = torch.ByteTensor(action).to(self.device)
+                adv = torch.HalfTensor(adv).to(self.device)
+                int_return = torch.HalfTensor(int_return).to(self.device)
+                ext_return = torch.HalfTensor(ext_return).to(self.device)
+                old_log_prob = torch.HalfTensor(old_log_prob).to(self.device)
 
                 dist, int_value, ext_value = self.current_policy(state)
                 entropy = dist.entropy().mean()
@@ -142,7 +142,7 @@ class Brain:
     def calculate_int_rewards(self, next_states):
         next_states = np.clip((next_states - self.state_rms.mean) / self.state_rms.var ** 0.5, -5, 5)
         next_states = np.expand_dims(next_states, 1)
-        next_states = from_numpy(next_states).float().to(self.device)
+        next_states = from_numpy(next_states).half().to(self.device)
         predictor_encoded_features = self.predictor_model(next_states)
         target_encoded_features = self.target_model(next_states)
 

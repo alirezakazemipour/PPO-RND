@@ -8,14 +8,15 @@ import time
 from torch.utils.tensorboard import SummaryWriter
 from test_policy import evaluate_policy
 from play import Play
+import torch
 
 env_name = "MontezumaRevengeNoFrameskip-v4"
 test_env = gym.make(env_name)
 n_actions = test_env.action_space.n
-n_workers = 2  # 128
+n_workers = 32
 stacked_state_shape = (84, 84, 4)
 state_shape = (84, 84, 1)
-device = "cuda"
+device = torch.device("cuda")
 iterations = int(30e3)
 max_episode_steps = int(18e3)
 log_period = 50
@@ -141,7 +142,7 @@ if __name__ == '__main__':
                       f"Explained variance:{ev:.3f}| "
                       f"Entropy: {entropy:.3f}| "
                       f"Iter_duration: {time.time() - start_time:.3f}| "
-                      f"Lr: {brain.scheduler.get_last_lr()}| "
+                      # f"Lr: {brain.scheduler.get_last_lr()}| "
                       f"Clip_range:{brain.epsilon:.3f}")
                 brain.save_params(iteration, running_reward)
 
