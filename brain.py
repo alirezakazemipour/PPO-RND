@@ -9,14 +9,14 @@ from utils import explained_variance, RunningMeanStd, RewardForwardFilter
 
 class Brain:
     def __init__(self, stacked_state_shape, state_shape, n_actions, device, n_workers, epochs, n_iters, epsilon, lr,
-                 ext_gamma, int_gamma, int_adv_coeff, ext_adv_coeff):
+                 ext_gamma, int_gamma, int_adv_coeff, ext_adv_coeff, batch_size):
         self.stacked_state_shape = stacked_state_shape
         self.state_shape = state_shape
         self.n_actions = n_actions
         self.device = device
         self.n_workers = n_workers
-        self.mini_batch_size = 4
         self.epochs = epochs
+        self.batch_size = batch_size
         self.n_iters = n_iters
         self.initial_epsilon = epsilon
         self.epsilon = self.initial_epsilon
@@ -39,6 +39,8 @@ class Brain:
         self.state_rms = RunningMeanStd(shape=self.state_shape[:2])
         self.int_reward_rms = RunningMeanStd(shape=(1,))
 
+        self.mse_loss = torch.nn.MSELoss()
+
     def get_actions_and_values(self, state, batch=False):
         if not batch:
             state = np.expand_dims(state, 0)
@@ -50,11 +52,11 @@ class Brain:
         return action.cpu().numpy(), int_value.detach().cpu().numpy().squeeze(), \
                ext_value.detach().cpu().numpy().squeeze(), log_prob.cpu().numpy()
 
-    def choose_mini_batch(self, states, actions, returns, advs, values, log_probs):
-        for worker in range(self.n_workers):
-            idxes = np.random.randint(0, states.shape[1], self.mini_batch_size)
-            yield states[worker][idxes], actions[worker][idxes], returns[worker][idxes], advs[worker][idxes], \
-                  values[worker][idxes], log_probs[worker][idxes]
+    def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, int_values, ext_values, log_probs):
+        idxes = np.random.randint(0, len(states), self.batch_size)
+
+        yield states[idxes], actions[idxes], int_returns[idxes], ext_returns[idxes], advs[idxes], \
+              int_values[idxes], ext_values[idxes], log_probs[idxes]
 
     def train(self, states, actions, int_rewards,
               ext_rewards, dones, int_values, ext_values,
@@ -65,26 +67,31 @@ class Brain:
         ext_returns = self.get_gae(ext_rewards, ext_values.copy(), next_ext_values,
                                    dones, self.ext_gamma)
 
-        ext_values = np.vstack(ext_values)  # .reshape((len(values[0]) * self.n_workers,))
+        ext_values = np.vstack(ext_values).reshape((len(ext_values[0]) * self.n_workers,))
         ext_advs = ext_returns - ext_values
 
-        int_values = np.vstack(int_values)  # .reshape((len(values[0]) * self.n_workers,))
+        int_values = np.vstack(int_values).reshape((len(int_values[0]) * self.n_workers,))
         int_advs = int_returns - int_values
 
         advs = ext_advs * self.ext_adv_coeff + int_advs * self.int_adv_coeff
 
         self.state_rms.update(np.vstack(total_next_obs))
         for epoch in range(self.epochs):
-            for state, action, q_value, adv, old_value, old_log_prob in self.choose_mini_batch(states, actions, returns,
-                                                                                               advs, values, log_probs):
+            for state, action, int_return, ext_return, \
+                adv, old_int_value, old_ext_value, old_log_prob in self.choose_mini_batch(states, actions,
+                                                                                          int_returns, ext_returns,
+                                                                                          advs, int_values,
+                                                                                          ext_values, log_probs):
                 state = torch.ByteTensor(state).permute([0, 3, 1, 2]).to(self.device)
                 action = torch.Tensor(action).to(self.device)
                 adv = torch.Tensor(adv).to(self.device)
-                q_value = torch.Tensor(q_value).to(self.device)
-                old_value = torch.Tensor(old_value).to(self.device)
+                int_return = torch.Tensor(int_return).to(self.device)
+                ext_return = torch.Tensor(ext_return).to(self.device)
+                old_int_value = torch.Tensor(old_int_value).to(self.device)
+                old_ext_value = torch.Tensor(old_ext_value).to(self.device)
                 old_log_prob = torch.Tensor(old_log_prob).to(self.device)
 
-                dist, value = self.current_policy(state)
+                dist, int_value, ext_value = self.current_policy(state)
                 entropy = dist.entropy().mean()
                 new_log_prob = self.calculate_log_probs(self.current_policy, state, action)
                 ratio = (new_log_prob - old_log_prob).exp()
@@ -130,7 +137,7 @@ class Brain:
                 gae = delta + gamma * lam * (1 - extended_dones[worker][step + 1]) * gae
                 returns[worker].insert(0, gae + extended_values[worker][step])
 
-        return np.vstack(returns)  # .reshape((len(returns[0]) * self.n_workers,))
+        return np.vstack(returns).reshape((len(returns[0]) * self.n_workers,))
 
     @staticmethod
     def calculate_log_probs(model, states, actions):

@@ -21,6 +21,8 @@ max_episode_steps = int(18e3)
 log_period = 50
 T = 128
 epochs = 4
+n_mini_batch = 4
+batch_size = T * n_workers // n_mini_batch
 lr = 1e-4
 ext_gamma = 0.999
 int_gamma = 0.99
@@ -38,7 +40,7 @@ def run_workers(worker, conn):
 
 if __name__ == '__main__':
     brain = Brain(stacked_state_shape, state_shape, n_actions, device, n_workers, epochs, iterations, clip_range, lr,
-                  ext_gamma, int_gamma, int_adv_coeff, ext_adv_coeff)
+                  ext_gamma, int_gamma, int_adv_coeff, ext_adv_coeff, batch_size)
     if Train:
         if LOAD_FROM_CKP:
             running_reward, init_iteration = brain.load_params()
@@ -110,8 +112,9 @@ if __name__ == '__main__':
 
             total_int_rewards = brain.normalize_int_rewards(total_int_rewards)
 
-            # total_states = total_states.reshape((n_workers * T,) + state_shape)
-            # total_actions = total_actions.reshape(n_workers * T)
+            total_states = total_states.reshape((n_workers * T,) + stacked_state_shape)
+            total_actions = total_actions.reshape(n_workers * T)
+            total_log_probs = total_actions.reshape(n_workers * T)
 
             # Calculates if value function is a good predictor of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
