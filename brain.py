@@ -33,9 +33,8 @@ class Brain:
         for param in self.target_model.parameters():
             param.requires_grad = False
 
-        self.optimizer = Adam(self.current_policy.parameters(), lr=self.lr, eps=1e-5)
-        # self._schedule_fn = lambda step: max(1.0 - float(step / self.n_iters), 0)
-        # self.scheduler = LambdaLR(self.optimizer, lr_lambda=self._schedule_fn)
+        self.optimizer = Adam(list(self.current_policy.parameters()) + list(self.predictor_model.parameters()),
+                              lr=self.lr, eps=1e-5)
 
         self.state_rms = RunningMeanStd(shape=self.state_shape[:2])
         self.int_reward_rms = RunningMeanStd(shape=(1,))
