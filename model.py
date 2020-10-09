@@ -65,7 +65,7 @@ class PolicyModel(nn.Module, ABC):
         self.ext_value.bias.data.zero_()
 
     def forward(self, inputs):
-        x = (inputs / 255.).half()
+        x = inputs / 255.
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
         x = F.relu(self.conv3(x))
