@@ -6,7 +6,6 @@ import gym
 from tqdm import tqdm
 import time
 from torch.utils.tensorboard import SummaryWriter
-from test_policy import evaluate_policy
 from play import Play
 import torch
 
@@ -16,7 +15,7 @@ import torch
 env_name = "MontezumaRevengeNoFrameskip-v4"
 test_env = gym.make(env_name)
 n_actions = test_env.action_space.n
-n_workers = 8
+n_workers = 32
 stacked_state_shape = (84, 84, 4)
 state_shape = (84, 84, 1)
 device = torch.device("cuda")
@@ -61,16 +60,17 @@ if __name__ == '__main__':
         for worker in workers:
             parent_conn, child_conn = Pipe()
             p = Process(target=run_workers, args=(worker, child_conn,))
+            p.daemon = True
             parents.append(parent_conn)
             p.start()
 
         print("---Pre_normalization started.---")
         states = []
+        actions = np.random.randint(0, n_actions, (T * pre_normalization_steps, n_workers))
         for t in range(T * pre_normalization_steps):
             for worker_id, parent in enumerate(parents):
                 parent.recv()  # Only collects next_states for normalization.
-            actions = np.random.randint(0, n_actions, n_workers,)
-            for parent, a in zip(parents, actions):
+            for parent, a in zip(parents, actions[t]):
                 parent.send(a)
 
             for parent in parents:
