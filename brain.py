@@ -34,7 +34,7 @@ class Brain:
             param.requires_grad = False
 
         self.optimizer = Adam(list(self.current_policy.parameters()) + list(self.predictor_model.parameters()),
-                              lr=self.lr, eps=1e-5)
+                              lr=self.lr)
 
         self.state_rms = RunningMeanStd(shape=self.state_shape[:2])
         self.int_reward_rms = RunningMeanStd(shape=(1,))
@@ -75,7 +75,7 @@ class Brain:
 
         advs = ext_advs * self.ext_adv_coeff + int_advs * self.int_adv_coeff
 
-        self.state_rms.update(np.vstack(total_next_obs))
+        self.state_rms.update(total_next_obs)
         total_next_obs = ((total_next_obs - self.state_rms.mean) / np.sqrt(self.state_rms.var)).clip(-5, 5)
 
         for epoch in range(self.epochs):
@@ -98,6 +98,7 @@ class Brain:
 
                 int_value_loss = self.mse_loss(int_value.squeeze(-1), int_return)
                 ext_value_loss = self.mse_loss(ext_value.squeeze(-1), ext_return)
+
                 critic_loss = 0.5 * (int_value_loss + ext_value_loss)
 
                 rnd_loss = self.calculate_rnd_loss(next_state)
@@ -105,9 +106,8 @@ class Brain:
                 total_loss = critic_loss + actor_loss - self.ent_coeff * entropy + rnd_loss
                 self.optimize(total_loss)
 
-        return total_loss.item(), entropy.item(), 0  # \
-        # explained_variance(values.reshape((len(returns[0]) * self.n_workers,)),
-        #                    returns.reshape((len(returns[0]) * self.n_workers,)))
+        return actor_loss.item(), ext_value_loss.item(), int_value_loss.item(), rnd_loss.item(), entropy.item(), \
+               explained_variance(int_values, int_returns), explained_variance(ext_values, ext_returns)
 
     def optimize(self, loss):
         self.optimizer.zero_grad()
@@ -139,7 +139,7 @@ class Brain:
         return policy_distribution.log_prob(actions)
 
     def calculate_int_rewards(self, next_states, T):
-        next_states = np.clip((next_states - self.state_rms.mean) / self.state_rms.var ** 0.5, -5, 5)
+        next_states = np.clip((next_states - self.state_rms.mean) / (self.state_rms.var ** 0.5), -5, 5)
         next_states = np.expand_dims(next_states, 1)
         next_states = from_numpy(next_states).float().to(self.device)
         predictor_encoded_features = self.predictor_model(next_states)

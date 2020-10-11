@@ -4,24 +4,23 @@ import numpy as np
 from brain import Brain
 import gym
 from tqdm import tqdm
+import datetime
 import time
 from torch.utils.tensorboard import SummaryWriter
 from play import Play
 import torch
 
-# from logger import Logger
-
-
 env_name = "MontezumaRevengeNoFrameskip-v4"
+time_dir = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 test_env = gym.make(env_name)
 n_actions = test_env.action_space.n
-n_workers = 32
+n_workers = 2  # 128 # 32
 stacked_state_shape = (84, 84, 4)
 state_shape = (84, 84, 1)
 device = torch.device("cuda")
 iterations = int(30e3)
 max_episode_steps = int(18e3)
-log_period = 1
+log_period = 25
 T = 128
 epochs = 4
 n_mini_batch = 4
@@ -33,7 +32,7 @@ ext_adv_coeff = 2
 int_adv_coeff = 1
 ent_coeff = 0.001
 clip_range = 0.1
-predictor_proportion = 0.25
+predictor_proportion = 32 / n_workers
 pre_normalization_steps = 50
 LOAD_FROM_CKP = False
 Train = True
@@ -49,10 +48,10 @@ if __name__ == '__main__':
                   ext_gamma, int_gamma, int_adv_coeff, ext_adv_coeff, ent_coeff, batch_size, predictor_proportion)
     if Train:
         if LOAD_FROM_CKP:
-            running_reward, init_iteration = brain.load_params()
+            running_ext_reward, init_iteration = brain.load_params()
         else:
             init_iteration = 0
-            running_reward = 0
+            running_ext_reward = 0
 
         workers = [Worker(i, stacked_state_shape, env_name, max_episode_steps) for i in range(n_workers)]
 
@@ -82,6 +81,8 @@ if __name__ == '__main__':
                 states = []
         print("---Pre_normalization is done.---")
 
+        episode = 0
+        episode_ext_reward = 0
         for iteration in tqdm(range(init_iteration + 1, iterations + 1)):
             start_time = time.time()
             total_states = np.zeros((n_workers, T,) + stacked_state_shape)
@@ -107,11 +108,21 @@ if __name__ == '__main__':
                     parent.send(int(a))
 
                 for worker_id, parent in enumerate(parents):
-                    s_, r, d = parent.recv()
+                    s_, r, d, _ = parent.recv()
                     total_ext_rewards[worker_id, t] = r
                     total_dones[worker_id, t] = d
                     next_states[worker_id] = s_
                     total_next_obs[worker_id, t] = s_[..., -1]
+
+                episode_ext_reward += total_ext_rewards[0, t]
+                if total_dones[0, t]:
+                    episode += 1
+                    if episode == 1:
+                        running_ext_reward = episode_ext_reward
+                    else:
+                        running_ext_reward = 0.99 * running_ext_reward + 0.01 * episode_ext_reward
+                    episode_ext_reward = 0
+
             total_next_obs = total_next_obs.reshape((n_workers * T,) + state_shape[:2])
             total_int_rewards = brain.calculate_int_rewards(total_next_obs, T)
             _, next_int_values, next_ext_values, _ = brain.get_actions_and_values(next_states, batch=True)
@@ -125,35 +136,29 @@ if __name__ == '__main__':
 
             # Calculates if value function is a good predictor of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
-            total_loss, entropy, ev = brain.train(total_states, total_actions, total_int_rewards,
-                                                  total_ext_rewards, total_dones, total_int_values, total_ext_values,
-                                                  total_log_probs, next_int_values, next_ext_values, total_next_obs)
-
-            # episode_reward = evaluate_policy(env_name, brain, stacked_state_shape)
-
-            # if iteration == 1:
-            #     running_reward = episode_reward
-            # else:
-            #     running_reward = 0.99 * running_reward + 0.01 * episode_reward
+            training_logs = brain.train(total_states, total_actions, total_int_rewards,
+                                        total_ext_rewards, total_dones, total_int_values, total_ext_values,
+                                        total_log_probs, next_int_values, next_ext_values, total_next_obs)
 
             if iteration % log_period == 0:
                 print(f"Iter: {iteration}| "
-                      # f"Ep_reward: {episode_reward:.3f}| "
-                      f"Running_reward: {running_reward:.3f}| "
-                      # f"Total_loss: {total_loss:.3f}| "
-                      # f"Explained variance:{ev:.3f}| "
-                      # f"Entropy: {entropy:.3f}| "
-                      f"Iter_duration: {time.time() - start_time:.3f}| "
-                      # f"Lr: {brain.scheduler.get_last_lr()}| "
-                      f"Clip_range:{brain.epsilon:.3f}")
-                brain.save_params(iteration, running_reward)
+                      f"Ep_ext_reward: {episode_ext_reward:.3f}| "
+                      f"Running_ext_reward: {running_ext_reward:.3f}| "
+                      f"Int_reward: {total_int_rewards[0].mean():.3f}| "
+                      f"Iter_duration: {time.time() - start_time:.3f}| ")
+                brain.save_params(iteration, running_ext_reward)
 
-            with SummaryWriter(env_name + "/logs") as writer:
-                writer.add_scalar("running reward", running_reward, iteration)
-                # writer.add_scalar("episode reward", episode_reward, iteration)
-                # writer.add_scalar("explained variance", ev, iteration)
-                # writer.add_scalar("loss", total_loss, iteration)
-                # writer.add_scalar("entropy", entropy, iteration)
+            with SummaryWriter(env_name + "/logs/" + time_dir) as writer:
+                writer.add_scalar("Running_ext_reward", running_ext_reward, episode)
+                writer.add_scalar("Int_reward", total_int_rewards[0].mean(), iteration)
+                writer.add_scalar("Actor_loss", training_logs[0], iteration)
+                writer.add_scalar("Ext value loss", training_logs[1], iteration)
+                writer.add_scalar("Int value loss", training_logs[2], iteration)
+                writer.add_scalar("RND loss", training_logs[3], iteration)
+                writer.add_scalar("Entropy", training_logs[4], iteration)
+                writer.add_scalar("Explained int variance", training_logs[5], iteration)
+                writer.add_scalar("Explained ext variance", training_logs[6], iteration)
+
     else:
         play = Play(env_name, brain)
         play.evaluate()

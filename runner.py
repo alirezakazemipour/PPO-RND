@@ -31,6 +31,6 @@ class Worker:
             next_state, r, d, info = self.env.step(action)
             # self.render()
             self._stacked_states = stack_states(self._stacked_states, next_state, False)
-            conn.send((self._stacked_states, np.sign(r), d))
+            conn.send((self._stacked_states, np.sign(r), d, info))
             if d:
                 self.reset()
