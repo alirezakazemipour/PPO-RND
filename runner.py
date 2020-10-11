@@ -9,7 +9,6 @@ class Worker:
         self.state_shape = state_shape
         self.env = make_atari(self.env_name, self.max_episode_steps)
         self.lives = self.env.ale.lives()
-        # self.env = gym.make(self.env_name)
         self._stacked_states = np.zeros(self.state_shape, dtype=np.uint8)
         self.reset()
 

@@ -146,7 +146,7 @@ if __name__ == '__main__':
                       f"Running_ext_reward: {running_ext_reward:.3f}| "
                       f"Int_reward: {total_int_rewards[0].mean():.3f}| "
                       f"Iter_duration: {time.time() - start_time:.3f}| ")
-                brain.save_params(iteration, running_ext_reward)
+                brain.save_params(episode, iteration, running_ext_reward)
 
             with SummaryWriter(env_name + "/logs/" + time_dir) as writer:
                 writer.add_scalar("Running_ext_reward", running_ext_reward, episode)

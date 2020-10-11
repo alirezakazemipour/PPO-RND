@@ -56,7 +56,7 @@ class Brain:
         idxes = np.random.randint(0, len(states), self.batch_size)
 
         yield states[idxes], actions[idxes], int_returns[idxes], ext_returns[idxes], advs[idxes], \
-              log_probs[idxes], np.expand_dims(next_states[idxes], 1)
+              log_probs[idxes], next_states[idxes]
 
     def train(self, states, actions, int_rewards,
               ext_rewards, dones, int_values, ext_values,
@@ -77,6 +77,7 @@ class Brain:
 
         self.state_rms.update(total_next_obs)
         total_next_obs = ((total_next_obs - self.state_rms.mean) / np.sqrt(self.state_rms.var)).clip(-5, 5)
+        total_next_obs = np.expand_dims(total_next_obs, 1)
 
         for epoch in range(self.epochs):
             for state, action, int_return, ext_return, \
@@ -162,7 +163,7 @@ class Brain:
             for step in reversed(range(len(intrinsic_rewards[worker]))):
                 rewems = rewems * self.int_gamma + intrinsic_rewards[worker][step]
                 intrinsic_returns[worker].insert(0, rewems)
-        self.int_reward_rms.update(np.vstack(intrinsic_returns))
+        self.int_reward_rms.update(np.ravel(intrinsic_returns).reshape(-1, 1))
 
         return intrinsic_rewards / np.sqrt(self.int_reward_rms.var)
 
@@ -182,12 +183,21 @@ class Brain:
         loss = (mask * loss).sum() / torch.max(mask.sum(), torch.Tensor([1]).to(self.device))
         return loss
 
-    def save_params(self, iteration, running_reward):
+    def save_params(self, episode, iteration, running_reward):
         torch.save({"current_policy_state_dict": self.current_policy.state_dict(),
+                    "predictor_model_state_dict": self.predictor_model.state_dict(),
+                    "target_model_state_dict": self.target_model.state_dict(),
                     "optimizer_state_dict": self.optimizer.state_dict(),
+                    "state_rms_mean": self.state_rms.mean,
+                    "state_rms_var": self.state_rms.var,
+                    "state_rms_count": self.state_rms.count,
+                    "int_reward_rms_mean": self.int_reward_rms.mean,
+                    "int_reward_rms_var": self.int_reward_rms.var,
+                    "int_reward_rms_count": self.int_reward_rms.count,
                     "iteration": iteration,
-                    "running_reward": running_reward,
-                    "clip_range": self.epsilon},
+                    "episode": episode,
+                    "running_reward": running_reward
+                    },
                    "params.pth")
 
     def load_params(self):
