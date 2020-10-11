@@ -33,8 +33,8 @@ class Brain:
         for param in self.target_model.parameters():
             param.requires_grad = False
 
-        self.optimizer = Adam(list(self.current_policy.parameters()) + list(self.predictor_model.parameters()),
-                              lr=self.lr)
+        self.total_trainable_params = list(self.current_policy.parameters()) + list(self.predictor_model.parameters())
+        self.optimizer = Adam(self.total_trainable_params, lr=self.lr)
 
         self.state_rms = RunningMeanStd(shape=self.state_shape[:2])
         self.int_reward_rms = RunningMeanStd(shape=(1,))
@@ -80,8 +80,13 @@ class Brain:
 
         for epoch in range(self.epochs):
             for state, action, int_return, ext_return, \
-                adv, old_log_prob, next_state in self.choose_mini_batch(states, actions, int_returns, ext_returns, advs,
-                                                                        log_probs, total_next_obs):
+                adv, old_log_prob, next_state in self.choose_mini_batch(states,
+                                                                        actions,
+                                                                        int_returns,
+                                                                        ext_returns,
+                                                                        advs,
+                                                                        log_probs,
+                                                                        total_next_obs):
                 state = torch.ByteTensor(state).permute([0, 3, 1, 2]).contiguous().to(self.device)
                 next_state = torch.Tensor(next_state).to(self.device)
                 action = torch.ByteTensor(action).to(self.device)
@@ -112,7 +117,7 @@ class Brain:
     def optimize(self, loss):
         self.optimizer.zero_grad()
         loss.backward()
-        clip_grad_norm_(list(self.current_policy.parameters()) + list(self.predictor_model.parameters()))
+        clip_grad_norm_(self.total_trainable_params)
         self.optimizer.step()
 
     def get_gae(self, rewards, values, next_values, dones, gamma, lam=0.95):
@@ -157,7 +162,7 @@ class Brain:
             for step in reversed(range(len(intrinsic_rewards[worker]))):
                 rewems = rewems * self.int_gamma + intrinsic_rewards[worker][step]
                 intrinsic_returns[worker].insert(0, rewems)
-        self.int_reward_rms.update(np.ravel(intrinsic_returns).reshape(-1, 1))
+        self.int_reward_rms.update(np.vstack(intrinsic_returns))
 
         return intrinsic_rewards / np.sqrt(self.int_reward_rms.var)
 
