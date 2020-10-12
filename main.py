@@ -34,7 +34,7 @@ ent_coeff = 0.001
 clip_range = 0.1
 predictor_proportion = 32 / n_workers
 pre_normalization_steps = 50
-LOAD_FROM_CKP = False
+LOAD_FROM_CKP = True
 Train = True
 
 
@@ -44,14 +44,29 @@ def run_workers(worker, conn):
 
 if __name__ == '__main__':
 
-    brain = Brain(stacked_state_shape, state_shape, n_actions, device, n_workers, epochs, iterations, clip_range, lr,
-                  ext_gamma, int_gamma, int_adv_coeff, ext_adv_coeff, ent_coeff, batch_size, predictor_proportion)
+    brain = Brain(stacked_state_shape=stacked_state_shape,
+                  state_shape=state_shape,
+                  n_actions=n_actions,
+                  device=device,
+                  n_workers=n_workers,
+                  epochs=epochs,
+                  n_iters=iterations,
+                  epsilon=clip_range,
+                  lr=lr,
+                  ext_gamma=ext_gamma,
+                  int_gamma=int_gamma,
+                  int_adv_coeff=int_adv_coeff,
+                  ext_adv_coeff=ext_adv_coeff,
+                  ent_coeff=ent_coeff,
+                  batch_size=batch_size,
+                  predictor_proportion=predictor_proportion)
     if Train:
         if LOAD_FROM_CKP:
-            running_ext_reward, init_iteration = brain.load_params()
+            running_ext_reward, init_iteration, episode = brain.load_params()
         else:
             init_iteration = 0
             running_ext_reward = 0
+            episode = 0
 
         workers = [Worker(i, stacked_state_shape, env_name, max_episode_steps) for i in range(n_workers)]
 
@@ -63,25 +78,25 @@ if __name__ == '__main__':
             parents.append(parent_conn)
             p.start()
 
-        print("---Pre_normalization started.---")
-        states = []
-        actions = np.random.randint(0, n_actions, (T * pre_normalization_steps, n_workers))
-        for t in range(T * pre_normalization_steps):
-            for worker_id, parent in enumerate(parents):
-                parent.recv()  # Only collects next_states for normalization.
-            for parent, a in zip(parents, actions[t]):
-                parent.send(a)
+        if not LOAD_FROM_CKP:
+            print("---Pre_normalization started.---")
+            states = []
+            actions = np.random.randint(0, n_actions, (T * pre_normalization_steps, n_workers))
+            for t in range(T * pre_normalization_steps):
+                for worker_id, parent in enumerate(parents):
+                    parent.recv()  # Only collects next_states for normalization.
+                for parent, a in zip(parents, actions[t]):
+                    parent.send(a)
 
-            for parent in parents:
-                s_, *_ = parent.recv()
-                states.append(s_[:, :, -1])
+                for parent in parents:
+                    s_, *_ = parent.recv()
+                    states.append(s_[:, :, -1])
 
-            if len(states) % (n_workers * T) == 0:
-                brain.state_rms.update(np.stack(states))
-                states = []
-        print("---Pre_normalization is done.---")
+                if len(states) % (n_workers * T) == 0:
+                    brain.state_rms.update(np.stack(states))
+                    states = []
+            print("---Pre_normalization is done.---")
 
-        episode = 0
         episode_ext_reward = 0
         for iteration in tqdm(range(init_iteration + 1, iterations + 1)):
             start_time = time.time()
@@ -126,7 +141,7 @@ if __name__ == '__main__':
             total_next_obs = total_next_obs.reshape((n_workers * T,) + state_shape[:2])
             total_int_rewards = brain.calculate_int_rewards(total_next_obs, T)
             _, next_int_values, next_ext_values, _ = brain.get_actions_and_values(next_states, batch=True)
-            next_ext_values *= (1 - total_dones[:, -1])
+            # next_ext_values *= (1 - total_dones[:, -1])
 
             total_int_rewards = brain.normalize_int_rewards(total_int_rewards)
 
@@ -136,9 +151,11 @@ if __name__ == '__main__':
 
             # Calculates if value function is a good predictor of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
-            training_logs = brain.train(total_states, total_actions, total_int_rewards,
-                                        total_ext_rewards, total_dones, total_int_values, total_ext_values,
-                                        total_log_probs, next_int_values, next_ext_values, total_next_obs)
+            training_logs = brain.train(states=total_states, actions=total_actions, int_rewards=total_int_rewards,
+                                        ext_rewards=total_ext_rewards, dones=total_dones,
+                                        int_values=total_int_values, ext_values=total_ext_values,
+                                        log_probs=total_log_probs, next_int_values=next_int_values,
+                                        next_ext_values=next_ext_values, total_next_obs=total_next_obs)
 
             if iteration % log_period == 0:
                 print(f"Iter: {iteration}| "

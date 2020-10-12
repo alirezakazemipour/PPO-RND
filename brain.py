@@ -80,14 +80,15 @@ class Brain:
         total_next_obs = np.expand_dims(total_next_obs, 1)
 
         for epoch in range(self.epochs):
-            for state, action, int_return, ext_return, \
-                adv, old_log_prob, next_state in self.choose_mini_batch(states,
-                                                                        actions,
-                                                                        int_returns,
-                                                                        ext_returns,
-                                                                        advs,
-                                                                        log_probs,
-                                                                        total_next_obs):
+            for state, action, int_return, ext_return, adv, old_log_prob, next_state in \
+                    self.choose_mini_batch(states=states,
+                                           actions=actions,
+                                           int_returns=int_returns,
+                                           ext_returns=ext_returns,
+                                           advs=advs,
+                                           log_probs=log_probs,
+                                           next_states=total_next_obs):
+
                 state = torch.ByteTensor(state).permute([0, 3, 1, 2]).contiguous().to(self.device)
                 next_state = torch.Tensor(next_state).to(self.device)
                 action = torch.ByteTensor(action).to(self.device)
@@ -198,12 +199,22 @@ class Brain:
     def load_params(self):
         checkpoint = torch.load("params.pth", map_location=self.device)
         self.current_policy.load_state_dict(checkpoint["current_policy_state_dict"])
+        self.predictor_model.load_state_dict(checkpoint["predictor_model_state_dict"])
+        self.target_model.load_state_dict(checkpoint["target_model_state_dict"])
+        for param in self.target_model.parameters():
+            param.requires_grad = False
         self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+        self.state_rms.mean = checkpoint["state_rms_mean"]
+        self.state_rms.var = checkpoint["state_rms_var"]
+        self.state_rms.count = checkpoint["state_rms_count"]
+        self.int_reward_rms.mean = checkpoint["int_reward_rms_mean"]
+        self.int_reward_rms.var = checkpoint["int_reward_rms_var"]
+        self.int_reward_rms.count = checkpoint["int_reward_rms_count"]
         iteration = checkpoint["iteration"]
         running_reward = checkpoint["running_reward"]
-        self.epsilon = checkpoint["clip_range"]
+        episode = checkpoint["episode"]
 
-        return running_reward, iteration
+        return running_reward, iteration, episode
 
     def set_to_eval_mode(self):
         self.current_policy.eval()
