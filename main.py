@@ -131,8 +131,8 @@ if __name__ == '__main__':
             total_int_rewards = brain.normalize_int_rewards(total_int_rewards)
 
             total_states = total_states.reshape((n_workers * T,) + stacked_state_shape)
-            total_actions = total_actions.reshape(n_workers * T)
-            total_log_probs = total_actions.reshape(n_workers * T)
+            total_actions = np.concatenate(total_actions)
+            total_log_probs = np.concatenate(total_log_probs)
 
             # Calculates if value function is a good predictor of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)

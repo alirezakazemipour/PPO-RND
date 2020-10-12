@@ -67,10 +67,10 @@ class Brain:
         ext_returns = self.get_gae(ext_rewards, ext_values.copy(), next_ext_values,
                                    dones, self.ext_gamma)
 
-        ext_values = np.vstack(ext_values).reshape((len(ext_values[0]) * self.n_workers,))
+        ext_values = np.concatenate(ext_values)
         ext_advs = ext_returns - ext_values
 
-        int_values = np.vstack(int_values).reshape((len(int_values[0]) * self.n_workers,))
+        int_values = np.concatenate(int_values)
         int_advs = int_returns - int_values
 
         advs = ext_advs * self.ext_adv_coeff + int_advs * self.int_adv_coeff
@@ -98,7 +98,7 @@ class Brain:
 
                 dist, int_value, ext_value = self.current_policy(state)
                 entropy = dist.entropy().mean()
-                new_log_prob = self.calculate_log_probs(self.current_policy, state, action)
+                new_log_prob = dist.log_prob(action)
                 ratio = (new_log_prob - old_log_prob).exp()
                 actor_loss = self.compute_ac_loss(ratio, adv)
 
@@ -137,12 +137,7 @@ class Brain:
                 gae = delta + gamma * lam * (1 - extended_dones[worker][step + 1]) * gae
                 returns[worker].insert(0, gae + extended_values[worker][step])
 
-        return np.vstack(returns).reshape((len(returns[0]) * self.n_workers,))
-
-    @staticmethod
-    def calculate_log_probs(model, states, actions):
-        policy_distribution, *_ = model(states)
-        return policy_distribution.log_prob(actions)
+        return np.concatenate(returns)
 
     def calculate_int_rewards(self, next_states, T):
         next_states = np.clip((next_states - self.state_rms.mean) / (self.state_rms.var ** 0.5), -5, 5)
@@ -155,7 +150,7 @@ class Brain:
         return int_reward.detach().cpu().numpy().reshape((self.n_workers, T))
 
     def normalize_int_rewards(self, intrinsic_rewards):
-        # OpenAI's usage of Forward filter is definitely wrong.
+        # OpenAI's usage of Forward filter is definitely wrong;
         # Because: https://github.com/openai/random-network-distillation/issues/16#issuecomment-488387659
         intrinsic_returns = [[] for _ in range(self.n_workers)]
         for worker in range(self.n_workers):
