@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
                 for parent in parents:
                     s_, *_ = parent.recv()
-                    states.append(s_[:, :, -1])
+                    states.append(s_[..., -1])
 
                 if len(states) % (n_workers * T) == 0:
                     brain.state_rms.update(np.stack(states))
@@ -98,6 +98,7 @@ if __name__ == '__main__':
             print("---Pre_normalization is done.---")
 
         episode_ext_reward = 0
+        visited_rooms = None
         for iteration in tqdm(range(init_iteration + 1, iterations + 1)):
             start_time = time.time()
             total_states = np.zeros((n_workers, T,) + stacked_state_shape)
@@ -122,8 +123,10 @@ if __name__ == '__main__':
                 for parent, a in zip(parents, total_actions[:, t]):
                     parent.send(int(a))
 
+                infos = []
                 for worker_id, parent in enumerate(parents):
-                    s_, r, d, _ = parent.recv()
+                    s_, r, d, info = parent.recv()
+                    infos.append(info)
                     total_ext_rewards[worker_id, t] = r
                     total_dones[worker_id, t] = d
                     next_states[worker_id] = s_
@@ -132,6 +135,7 @@ if __name__ == '__main__':
                 episode_ext_reward += total_ext_rewards[0, t]
                 if total_dones[0, t]:
                     episode += 1
+                    visited_rooms = infos[0]["episode"]["visited_room"]
                     if episode == 1:
                         running_ext_reward = episode_ext_reward
                     else:
@@ -159,6 +163,7 @@ if __name__ == '__main__':
 
             if iteration % log_period == 0:
                 print(f"Iter: {iteration}| "
+                      f"Visited_rooms: {visited_rooms}| "
                       f"Ep_ext_reward: {episode_ext_reward:.3f}| "
                       f"Running_ext_reward: {running_ext_reward:.3f}| "
                       f"Int_reward: {total_int_rewards[0].mean():.3f}| "
