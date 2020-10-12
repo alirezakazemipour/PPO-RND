@@ -126,16 +126,13 @@ class Brain:
 
         returns = [[] for _ in range(self.n_workers)]
         extended_values = np.zeros((self.n_workers, len(rewards[0]) + 1))
-        extended_dones = np.zeros((self.n_workers, len(rewards[0]) + 1))
         for worker in range(self.n_workers):
             extended_values[worker] = np.append(values[worker], next_values[worker])
-            extended_dones[worker] = np.append(dones[worker], 0)
             gae = 0
             for step in reversed(range(len(rewards[worker]))):
-                delta = rewards[worker][step] + \
-                        gamma * (extended_values[worker][step + 1]) * (1 - extended_dones[worker][step + 1]) \
+                delta = rewards[worker][step] + gamma * (extended_values[worker][step + 1]) * (1 - dones[worker][step])\
                         - extended_values[worker][step]
-                gae = delta + gamma * lam * (1 - extended_dones[worker][step + 1]) * gae
+                gae = delta + gamma * lam * (1 - dones[worker][step]) * gae
                 returns[worker].insert(0, gae + extended_values[worker][step])
 
         return np.concatenate(returns)

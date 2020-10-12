@@ -34,7 +34,7 @@ ent_coeff = 0.001
 clip_range = 0.1
 predictor_proportion = 32 / n_workers
 pre_normalization_steps = 50
-LOAD_FROM_CKP = True
+LOAD_FROM_CKP = False
 Train = True
 
 
