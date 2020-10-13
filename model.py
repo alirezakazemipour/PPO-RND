@@ -77,9 +77,7 @@ class PolicyModel(nn.Module, ABC):
         x_pi = x + F.relu(self.extra_policy_fc(x))
         int_value = self.int_value(x_v)
         ext_value = self.ext_value(x_v)
-        # pi = F.softmax(self.policy(x), dim=1)
         dist = Categorical(F.softmax(self.policy(x_pi), dim=1))
-        # dist = Categorical(logits=self.policy(x))
 
         return dist, int_value, ext_value
 

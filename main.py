@@ -90,7 +90,7 @@ if __name__ == '__main__':
 
                 for parent in parents:
                     s_, *_ = parent.recv()
-                    states.append(s_[..., -1])
+                    states.append(s_[..., -1].reshape(1, 84, 84))
 
                 if len(states) % (n_workers * T) == 0:
                     brain.state_rms.update(np.stack(states))
@@ -101,16 +101,16 @@ if __name__ == '__main__':
         visited_rooms = None
         for iteration in tqdm(range(init_iteration + 1, iterations + 1)):
             start_time = time.time()
-            total_states = np.zeros((n_workers, T,) + stacked_state_shape)
-            total_actions = np.zeros((n_workers, T))
+            total_states = np.zeros((n_workers, T,) + stacked_state_shape, dtype=np.uint8)
+            total_actions = np.zeros((n_workers, T), dtype=np.uint8)
             total_int_rewards = np.zeros((n_workers, T))
-            total_ext_rewards = np.zeros((n_workers, T))
-            total_dones = np.zeros((n_workers, T))
+            total_ext_rewards = np.zeros((n_workers, T), dtype=np.int)
+            total_dones = np.zeros((n_workers, T), dtype=np.bool)
             total_int_values = np.zeros((n_workers, T))
             total_ext_values = np.zeros((n_workers, T))
             total_log_probs = np.zeros((n_workers, T))
-            next_states = np.zeros((n_workers,) + stacked_state_shape)
-            total_next_obs = np.zeros((n_workers, T,) + state_shape[:2])
+            next_states = np.zeros((n_workers,) + stacked_state_shape, dtype=np.uint8)
+            total_next_obs = np.zeros((n_workers, T,) + state_shape[::-1], dtype=np.uint8)
             next_values = np.zeros(n_workers)
 
             for t in range(T):
@@ -121,7 +121,7 @@ if __name__ == '__main__':
                 total_actions[:, t], total_int_values[:, t], total_ext_values[:, t], total_log_probs[:, t] = \
                     brain.get_actions_and_values(total_states[:, t], batch=True)
                 for parent, a in zip(parents, total_actions[:, t]):
-                    parent.send(int(a))
+                    parent.send(a)
 
                 infos = []
                 for worker_id, parent in enumerate(parents):
@@ -142,7 +142,7 @@ if __name__ == '__main__':
                         running_ext_reward = 0.99 * running_ext_reward + 0.01 * episode_ext_reward
                     episode_ext_reward = 0
 
-            total_next_obs = total_next_obs.reshape((n_workers * T,) + state_shape[:2])
+            total_next_obs = total_next_obs.reshape((n_workers * T,) + state_shape[::-1])
             total_int_rewards = brain.calculate_int_rewards(total_next_obs, T)
             _, next_int_values, next_ext_values, _ = brain.get_actions_and_values(next_states, batch=True)
             # next_ext_values *= (1 - total_dones[:, -1])

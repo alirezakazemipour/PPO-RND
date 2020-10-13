@@ -36,7 +36,7 @@ class Brain:
         self.total_trainable_params = list(self.current_policy.parameters()) + list(self.predictor_model.parameters())
         self.optimizer = Adam(self.total_trainable_params, lr=self.lr)
 
-        self.state_rms = RunningMeanStd(shape=self.state_shape[:2])
+        self.state_rms = RunningMeanStd(shape=self.state_shape[::-1])
         self.int_reward_rms = RunningMeanStd(shape=(1,))
 
         self.mse_loss = torch.nn.MSELoss()
@@ -44,7 +44,7 @@ class Brain:
     def get_actions_and_values(self, state, batch=False):
         if not batch:
             state = np.expand_dims(state, 0)
-        state = from_numpy(state).byte().permute([0, 3, 1, 2]).contiguous().to(self.device)
+        state = from_numpy(state).permute([0, 3, 1, 2]).contiguous().to(self.device)
         with torch.no_grad():
             dist, int_value, ext_value = self.current_policy(state)
             action = dist.sample()
@@ -62,9 +62,9 @@ class Brain:
               ext_rewards, dones, int_values, ext_values,
               log_probs, next_int_values, next_ext_values, total_next_obs):
 
-        int_returns = self.get_gae(int_rewards, int_values.copy(), next_int_values,
+        int_returns = self.get_gae(int_rewards, int_values, next_int_values,
                                    np.zeros_like(dones), self.int_gamma)
-        ext_returns = self.get_gae(ext_rewards, ext_values.copy(), next_ext_values,
+        ext_returns = self.get_gae(ext_rewards, ext_values, next_ext_values,
                                    dones, self.ext_gamma)
 
         ext_values = np.concatenate(ext_values)
@@ -77,7 +77,7 @@ class Brain:
 
         self.state_rms.update(total_next_obs)
         total_next_obs = ((total_next_obs - self.state_rms.mean) / np.sqrt(self.state_rms.var)).clip(-5, 5)
-        total_next_obs = np.expand_dims(total_next_obs, 1)
+        # total_next_obs = np.expand_dims(total_next_obs, 1)
 
         for epoch in range(self.epochs):
             for state, action, int_return, ext_return, adv, old_log_prob, next_state in \
@@ -139,7 +139,7 @@ class Brain:
 
     def calculate_int_rewards(self, next_states, T):
         next_states = np.clip((next_states - self.state_rms.mean) / (self.state_rms.var ** 0.5), -5, 5)
-        next_states = np.expand_dims(next_states, 1)
+        # next_states = np.expand_dims(next_states, 1)
         next_states = from_numpy(next_states).float().to(self.device)
         predictor_encoded_features = self.predictor_model(next_states)
         target_encoded_features = self.target_model(next_states)
