@@ -172,7 +172,7 @@ if __name__ == '__main__':
 
             with SummaryWriter(env_name + "/logs/" + time_dir) as writer:
                 writer.add_scalar("Running_ext_reward", running_ext_reward, episode)
-                writer.add_scalar("Visited rooms", max(list(visited_rooms)), episode)
+                writer.add_scalar("Visited rooms", len(list(visited_rooms)), episode)
                 writer.add_scalar("Int_reward", total_int_rewards[0].mean(), iteration)
                 writer.add_scalar("Actor_loss", training_logs[0], iteration)
                 writer.add_scalar("Ext value loss", training_logs[1], iteration)
