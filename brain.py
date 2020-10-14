@@ -176,7 +176,7 @@ class Brain:
         loss = (mask * loss).sum() / torch.max(mask.sum(), torch.Tensor([1]).to(self.device))
         return loss
 
-    def save_params(self, episode, iteration, running_reward):
+    def save_params(self, episode, iteration, running_reward, visited_rooms):
         torch.save({"current_policy_state_dict": self.current_policy.state_dict(),
                     "predictor_model_state_dict": self.predictor_model.state_dict(),
                     "target_model_state_dict": self.target_model.state_dict(),
@@ -189,7 +189,8 @@ class Brain:
                     "int_reward_rms_count": self.int_reward_rms.count,
                     "iteration": iteration,
                     "episode": episode,
-                    "running_reward": running_reward
+                    "running_reward": running_reward,
+                    "visited_rooms": visited_rooms
                     },
                    "params.pth")
 
@@ -210,8 +211,9 @@ class Brain:
         iteration = checkpoint["iteration"]
         running_reward = checkpoint["running_reward"]
         episode = checkpoint["episode"]
+        visited_rooms = checkpoint["visited_rooms"]
 
-        return running_reward, iteration, episode
+        return running_reward, iteration, episode, visited_rooms
 
     def set_to_eval_mode(self):
         self.current_policy.eval()

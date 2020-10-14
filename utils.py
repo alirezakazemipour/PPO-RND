@@ -37,11 +37,11 @@ def explained_variance(ypred, y):
     return np.nan if vary == 0 else 1 - np.var(y - ypred) / vary
 
 
-def make_atari(env_id, max_episode_steps=int(18e3)):
-    main_env = gym.make(env_id)
-    main_env._max_episode_steps = max_episode_steps
-    assert 'NoFrameskip' in main_env.spec.id
-    env = StickyActionEnv(main_env)
+def make_atari(env_id, max_episode_steps):
+    env = gym.make(env_id)
+    env._max_episode_steps = max_episode_steps * 4
+    assert 'NoFrameskip' in env.spec.id
+    env = StickyActionEnv(env)
     env = RepeatActionEnv(env)
     env = MontezumaVisitedRoomEnv(env, 3)
     env = AddRandomStateToInfoEnv(env)
@@ -49,14 +49,9 @@ def make_atari(env_id, max_episode_steps=int(18e3)):
     return env
 
 
-class StickyActionEnv:
+class StickyActionEnv(gym.Wrapper):
     def __init__(self, env, p=0.25):
-        self.env = env
-        self.unwrapped = self.env.unwrapped
-        self.observation_space = env.observation_space
-        self.ale = self.env.ale
-        self.action_space = self.env.action_space
-        self._max_episode_steps = self.env._max_episode_steps
+        gym.Wrapper.__init__(self, env)
         self.p = p
         self.last_action = 0
 
@@ -71,24 +66,10 @@ class StickyActionEnv:
         self.last_action = 0
         return self.env.reset()
 
-    def render(self):
-        self.env.render()
 
-    def close(self):
-        self.env.close()
-
-    def seed(self, seed):
-        self.env.seed(seed)
-
-
-class RepeatActionEnv:
+class RepeatActionEnv(gym.Wrapper):
     def __init__(self, env):
-        self.env = env
-        self.unwrapped = self.env.unwrapped
-        self.observation_space = env.observation_space
-        self.action_space = self.env.action_space
-        self._max_episode_steps = self.env._max_episode_steps
-        self.ale = self.env.ale
+        gym.Wrapper.__init__(self, env)
         self.successive_frame = np.zeros((2,) + self.env.observation_space.shape, dtype=np.uint8)
 
     def reset(self):
@@ -109,24 +90,10 @@ class RepeatActionEnv:
         state = self.successive_frame.max(axis=0)
         return state, reward, done, info
 
-    def render(self):
-        self.env.render()
 
-    def close(self):
-        self.env.close()
-
-    def seed(self, seed):
-        self.env.seed(seed)
-
-
-class MontezumaVisitedRoomEnv:
+class MontezumaVisitedRoomEnv(gym.Wrapper):
     def __init__(self, env, room_address):
-        self.env = env
-        self.unwrapped = self.env.unwrapped
-        self.observation_space = env.observation_space
-        self.ale = self.env.ale
-        self.action_space = self.env.action_space
-        self._max_episode_steps = self.env._max_episode_steps
+        gym.Wrapper.__init__(self, env)
         self.room_address = room_address
         self.visited_rooms = set()  # Only stores unique numbers.
 
@@ -145,24 +112,10 @@ class MontezumaVisitedRoomEnv:
     def reset(self):
         return self.env.reset()
 
-    def render(self):
-        self.env.render()
 
-    def close(self):
-        self.env.close()
-
-    def seed(self, seed):
-        self.env.seed(seed)
-
-
-class AddRandomStateToInfoEnv:
+class AddRandomStateToInfoEnv(gym.Wrapper):
     def __init__(self, env):
-        self.env = env
-        self.unwrapped = self.env.unwrapped
-        self.observation_space = env.observation_space
-        self.ale = self.env.ale
-        self.action_space = self.env.action_space
-        self._max_episode_steps = self.env._max_episode_steps
+        gym.Wrapper.__init__(self, env)
         self.rng_at_episode_start = deepcopy(self.unwrapped.np_random)
 
     def step(self, action):
@@ -176,15 +129,6 @@ class AddRandomStateToInfoEnv:
     def reset(self):
         self.rng_at_episode_start = deepcopy(self.unwrapped.np_random)
         return self.env.reset()
-
-    def render(self):
-        self.env.render()
-
-    def close(self):
-        self.env.close()
-
-    def seed(self, seed):
-        self.env.seed(seed)
 
 
 class RunningMeanStd:

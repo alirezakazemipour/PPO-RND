@@ -19,7 +19,7 @@ stacked_state_shape = (84, 84, 4)
 state_shape = (84, 84, 1)
 device = torch.device("cuda")
 iterations = int(30e3)
-max_episode_steps = int(18e3)
+max_episode_steps = 4500  # 4500 * 4 = 18K :)
 log_period = 25
 T = 128
 epochs = 4
@@ -62,11 +62,12 @@ if __name__ == '__main__':
                   predictor_proportion=predictor_proportion)
     if Train:
         if LOAD_FROM_CKP:
-            running_ext_reward, init_iteration, episode = brain.load_params()
+            running_ext_reward, init_iteration, episode, visited_rooms = brain.load_params()
         else:
             init_iteration = 0
             running_ext_reward = 0
             episode = 0
+            visited_rooms = set([1])
 
         workers = [Worker(i, stacked_state_shape, env_name, max_episode_steps) for i in range(n_workers)]
 
@@ -98,7 +99,6 @@ if __name__ == '__main__':
             print("---Pre_normalization is done.---")
 
         episode_ext_reward = 0
-        visited_rooms = set([1])
         for iteration in tqdm(range(init_iteration + 1, iterations + 1)):
             start_time = time.time()
             total_states = np.zeros((n_workers, T,) + stacked_state_shape, dtype=np.uint8)
@@ -135,7 +135,8 @@ if __name__ == '__main__':
                 episode_ext_reward += total_ext_rewards[0, t]
                 if total_dones[0, t]:
                     episode += 1
-                    visited_rooms = infos[0]["episode"]["visited_room"]
+                    if "visited_room" in infos[0]["episode"]:
+                        visited_rooms = infos[0]["episode"]["visited_room"]
                     if episode == 1:
                         running_ext_reward = episode_ext_reward
                     else:
@@ -163,12 +164,13 @@ if __name__ == '__main__':
 
             if iteration % log_period == 0:
                 print(f"Iter: {iteration}| "
+                      f"Episode: {episode}| "
                       f"Visited_rooms: {visited_rooms}| "
                       f"Ep_ext_reward: {episode_ext_reward:.3f}| "
                       f"Running_ext_reward: {running_ext_reward:.3f}| "
                       f"Int_reward: {total_int_rewards[0].mean():.3f}| "
                       f"Iter_duration: {time.time() - start_time:.3f}| ")
-                brain.save_params(episode, iteration, running_ext_reward)
+                brain.save_params(episode, iteration, running_ext_reward, visited_rooms)
 
             with SummaryWriter(env_name + "/logs/" + time_dir) as writer:
                 writer.add_scalar("Running_ext_reward", running_ext_reward, episode)

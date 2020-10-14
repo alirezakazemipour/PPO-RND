@@ -24,12 +24,17 @@ class Worker:
         self.lives = self.env.ale.lives()
 
     def step(self, conn):
+        t = 1
         while True:
             conn.send(self._stacked_states)
             action = conn.recv()
             next_state, r, d, info = self.env.step(action)
+            t += 1
+            if t % self.max_episode_steps == 0:
+                d = True
             # self.render()
             self._stacked_states = stack_states(self._stacked_states, next_state, False)
             conn.send((self._stacked_states, np.sign(r), d, info))
             if d:
                 self.reset()
+                t = 1
