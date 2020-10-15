@@ -8,34 +8,9 @@ import datetime
 import time
 from torch.utils.tensorboard import SummaryWriter
 from play import Play
-import torch
+from Common.config import get_params
 
-env_name = "MontezumaRevengeNoFrameskip-v4"
 time_dir = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
-test_env = gym.make(env_name)
-n_actions = test_env.action_space.n
-n_workers = 2  # 128 # 32
-stacked_state_shape = (84, 84, 4)
-state_shape = (84, 84, 1)
-device = torch.device("cuda")
-iterations = int(30e3)
-max_episode_steps = 4500  # 4500 * 4 = 18K :)
-log_period = 25
-T = 128
-epochs = 4
-n_mini_batch = 4
-batch_size = T * n_workers // n_mini_batch
-lr = 1e-4
-ext_gamma = 0.999
-int_gamma = 0.99
-ext_adv_coeff = 2
-int_adv_coeff = 1
-ent_coeff = 0.001
-clip_range = 0.1
-predictor_proportion = 32 / n_workers
-pre_normalization_steps = 50
-LOAD_FROM_CKP = False
-Train = True
 
 
 def run_workers(worker, conn):
@@ -43,25 +18,18 @@ def run_workers(worker, conn):
 
 
 if __name__ == '__main__':
+    config = get_params()
 
-    brain = Brain(stacked_state_shape=stacked_state_shape,
-                  state_shape=state_shape,
-                  n_actions=n_actions,
-                  device=device,
-                  n_workers=n_workers,
-                  epochs=epochs,
-                  n_iters=iterations,
-                  epsilon=clip_range,
-                  lr=lr,
-                  ext_gamma=ext_gamma,
-                  int_gamma=int_gamma,
-                  int_adv_coeff=int_adv_coeff,
-                  ext_adv_coeff=ext_adv_coeff,
-                  ent_coeff=ent_coeff,
-                  batch_size=batch_size,
-                  predictor_proportion=predictor_proportion)
-    if Train:
-        if LOAD_FROM_CKP:
+    test_env = gym.make(config["env_name"])
+    config.update({"n_actions": test_env.action_space.n})
+    test_env.close()
+
+    config.update({"batch_size": config["rollout_length"] * config["n_workers"] // config["n_mini_batch"]})
+    config.update({"predictor_proportion": 32 / config["n_workers"]})
+
+    brain = Brain(**config)
+    if config["do_train"]:
+        if not config["train_from_scratch"]:
             running_ext_reward, init_iteration, episode, visited_rooms = brain.load_params()
         else:
             init_iteration = 0
@@ -69,7 +37,7 @@ if __name__ == '__main__':
             episode = 0
             visited_rooms = set([1])
 
-        workers = [Worker(i, stacked_state_shape, env_name, max_episode_steps) for i in range(n_workers)]
+        workers = [Worker(i, **config) for i in range(config["n_workers"])]
 
         parents = []
         for worker in workers:
@@ -79,11 +47,12 @@ if __name__ == '__main__':
             parents.append(parent_conn)
             p.start()
 
-        if not LOAD_FROM_CKP:
+        if not config["train_from_scratch"]:
             print("---Pre_normalization started.---")
             states = []
-            actions = np.random.randint(0, n_actions, (T * pre_normalization_steps, n_workers))
-            for t in range(T * pre_normalization_steps):
+            total_pre_normalization_steps = config["rollout_length"] * config["pre_normalization_steps"]
+            actions = np.random.randint(0, config["n_actions"], (total_pre_normalization_steps, config["n_workers"]))
+            for t in range(total_pre_normalization_steps):
                 for worker_id, parent in enumerate(parents):
                     parent.recv()  # Only collects next_states for normalization.
                 for parent, a in zip(parents, actions[t]):
@@ -93,27 +62,28 @@ if __name__ == '__main__':
                     s_, *_ = parent.recv()
                     states.append(s_[..., -1].reshape(1, 84, 84))
 
-                if len(states) % (n_workers * T) == 0:
+                if len(states) % (config["n_workers"] * config["rollout_length"]) == 0:
                     brain.state_rms.update(np.stack(states))
                     states = []
             print("---Pre_normalization is done.---")
 
         episode_ext_reward = 0
-        for iteration in tqdm(range(init_iteration + 1, iterations + 1)):
+        rollout_base_shape = config["n_workers"], config["rollout_length"]
+        for iteration in tqdm(range(init_iteration + 1, config["total_rollouts_per_env"] + 1)):
             start_time = time.time()
-            total_states = np.zeros((n_workers, T,) + stacked_state_shape, dtype=np.uint8)
-            total_actions = np.zeros((n_workers, T), dtype=np.uint8)
-            total_int_rewards = np.zeros((n_workers, T))
-            total_ext_rewards = np.zeros((n_workers, T), dtype=np.int)
-            total_dones = np.zeros((n_workers, T), dtype=np.bool)
-            total_int_values = np.zeros((n_workers, T))
-            total_ext_values = np.zeros((n_workers, T))
-            total_log_probs = np.zeros((n_workers, T))
-            next_states = np.zeros((n_workers,) + stacked_state_shape, dtype=np.uint8)
-            total_next_obs = np.zeros((n_workers, T,) + state_shape[::-1], dtype=np.uint8)
-            next_values = np.zeros(n_workers)
+            total_states = np.zeros(rollout_base_shape + config["state_shape"], dtype=np.uint8)
+            total_actions = np.zeros(rollout_base_shape, dtype=np.uint8)
+            total_int_rewards = np.zeros(rollout_base_shape)
+            total_ext_rewards = np.zeros(rollout_base_shape, dtype=np.int8)
+            total_dones = np.zeros(rollout_base_shape, dtype=np.bool)
+            total_int_values = np.zeros(rollout_base_shape)
+            total_ext_values = np.zeros(rollout_base_shape)
+            total_log_probs = np.zeros(rollout_base_shape)
+            next_states = np.zeros((rollout_base_shape[0],) + config["state_shape"], dtype=np.uint8)
+            total_next_obs = np.zeros(rollout_base_shape + config["obs_shape"][::-1], dtype=np.uint8)
+            next_values = np.zeros(rollout_base_shape[0])
 
-            for t in range(T):
+            for t in range(config["rollout_length"]):
                 for worker_id, parent in enumerate(parents):
                     s = parent.recv()
                     total_states[worker_id, t] = s
@@ -143,26 +113,32 @@ if __name__ == '__main__':
                         running_ext_reward = 0.99 * running_ext_reward + 0.01 * episode_ext_reward
                     episode_ext_reward = 0
 
-            total_next_obs = total_next_obs.reshape((n_workers * T,) + state_shape[::-1])
-            total_int_rewards = brain.calculate_int_rewards(total_next_obs, T)
+            total_next_obs = np.concatenate(total_next_obs)
+            total_int_rewards = brain.calculate_int_rewards(total_next_obs)
             _, next_int_values, next_ext_values, _ = brain.get_actions_and_values(next_states, batch=True)
             # next_ext_values *= (1 - total_dones[:, -1])
 
             total_int_rewards = brain.normalize_int_rewards(total_int_rewards)
 
-            total_states = total_states.reshape((n_workers * T,) + stacked_state_shape)
+            total_states = np.concatenate(total_states)
             total_actions = np.concatenate(total_actions)
             total_log_probs = np.concatenate(total_log_probs)
 
             # Calculates if value function is a good predictor of the returns (ev > 1)
             # or if it's just worse than predicting nothing (ev =< 0)
-            training_logs = brain.train(states=total_states, actions=total_actions, int_rewards=total_int_rewards,
-                                        ext_rewards=total_ext_rewards, dones=total_dones,
-                                        int_values=total_int_values, ext_values=total_ext_values,
-                                        log_probs=total_log_probs, next_int_values=next_int_values,
-                                        next_ext_values=next_ext_values, total_next_obs=total_next_obs)
+            training_logs = brain.train(states=total_states,
+                                        actions=total_actions,
+                                        int_rewards=total_int_rewards,
+                                        ext_rewards=total_ext_rewards,
+                                        dones=total_dones,
+                                        int_values=total_int_values,
+                                        ext_values=total_ext_values,
+                                        log_probs=total_log_probs,
+                                        next_int_values=next_int_values,
+                                        next_ext_values=next_ext_values,
+                                        total_next_obs=total_next_obs)
 
-            if iteration % log_period == 0:
+            if iteration % config["interval"] == 0:
                 print(f"Iter: {iteration}| "
                       f"Episode: {episode}| "
                       f"Visited_rooms: {visited_rooms}| "
@@ -172,7 +148,7 @@ if __name__ == '__main__':
                       f"Iter_duration: {time.time() - start_time:.3f}| ")
                 brain.save_params(episode, iteration, running_ext_reward, visited_rooms)
 
-            with SummaryWriter(env_name + "/logs/" + time_dir) as writer:
+            with SummaryWriter(config["env_name"] + "/logs/" + time_dir) as writer:
                 writer.add_scalar("Running_ext_reward", running_ext_reward, episode)
                 writer.add_scalar("Visited rooms", len(list(visited_rooms)), episode)
                 writer.add_scalar("Int_reward", total_int_rewards[0].mean(), iteration)
@@ -185,5 +161,5 @@ if __name__ == '__main__':
                 writer.add_scalar("Explained ext variance", training_logs[6], iteration)
 
     else:
-        play = Play(env_name, brain)
+        play = Play(config["env_name"], brain)
         play.evaluate()
