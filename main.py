@@ -7,9 +7,9 @@ import numpy as np
 from Brain.brain import Brain
 import gym
 from tqdm import tqdm
-import time
-from torch.utils.tensorboard import SummaryWriter
 
+
+# TODO: Load weights !!!
 
 def run_workers(worker, conn):
     worker.step(conn)
@@ -71,7 +71,6 @@ if __name__ == '__main__':
         episode_ext_reward = 0
         rollout_base_shape = config["n_workers"], config["rollout_length"]
         for iteration in tqdm(range(init_iteration + 1, config["total_rollouts_per_env"] + 1)):
-            start_time = time.time()
             total_states = np.zeros(rollout_base_shape + config["state_shape"], dtype=np.uint8)
             total_actions = np.zeros(rollout_base_shape, dtype=np.uint8)
             total_action_probs = np.zeros(rollout_base_shape + (config["n_actions"],))

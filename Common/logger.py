@@ -76,7 +76,7 @@ class Logger:
                   "EP_Running_Reward:{:.3f}| "
                   "Visited_rooms:{}| "
                   "Iter_Duration:{:.3f}| "
-                  "Time:{}| "
+                  "Time:{} "
                   .format(iteration,
                           self.episode,
                           self.episode_ext_reward,
