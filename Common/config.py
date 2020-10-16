@@ -6,7 +6,7 @@ def get_params():
         description="Variable parameters based on the configuration of the machine or user's choice")
 
     parser.add_argument("--n_workers", default=2, type=int, help="Number of parallel environments.")
-    parser.add_argument("--interval", default=10, type=int,
+    parser.add_argument("--interval", default=50, type=int,
                         help="The interval specifies how often different parameters should be saved and printed,"
                              " counted by iterations.")
     parser.add_argument("--do_train", action="store_false",

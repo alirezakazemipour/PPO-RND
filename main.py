@@ -1,16 +1,14 @@
-from runner import Worker
+from Common.runner import Worker
+from Common.play import Play
+from Common.config import get_params
+from Common.logger import Logger
 from torch.multiprocessing import Process, Pipe
 import numpy as np
-from brain import Brain
+from Brain.brain import Brain
 import gym
 from tqdm import tqdm
-import datetime
 import time
 from torch.utils.tensorboard import SummaryWriter
-from play import Play
-from Common.config import get_params
-
-time_dir = datetime.datetime.now().strftime("%Y-%m-%d-%H-%M-%S")
 
 
 def run_workers(worker, conn):
@@ -28,6 +26,8 @@ if __name__ == '__main__':
     config.update({"predictor_proportion": 32 / config["n_workers"]})
 
     brain = Brain(**config)
+    logger = Logger(brain, **config)
+
     if config["do_train"]:
         if not config["train_from_scratch"]:
             running_ext_reward, init_iteration, episode, visited_rooms = brain.load_params()
@@ -67,12 +67,14 @@ if __name__ == '__main__':
                     states = []
             print("---Pre_normalization is done.---")
 
+        logger.on()
         episode_ext_reward = 0
         rollout_base_shape = config["n_workers"], config["rollout_length"]
         for iteration in tqdm(range(init_iteration + 1, config["total_rollouts_per_env"] + 1)):
             start_time = time.time()
             total_states = np.zeros(rollout_base_shape + config["state_shape"], dtype=np.uint8)
             total_actions = np.zeros(rollout_base_shape, dtype=np.uint8)
+            total_action_probs = np.zeros(rollout_base_shape + (config["n_actions"],))
             total_int_rewards = np.zeros(rollout_base_shape)
             total_ext_rewards = np.zeros(rollout_base_shape, dtype=np.int8)
             total_dones = np.zeros(rollout_base_shape, dtype=np.bool)
@@ -88,8 +90,8 @@ if __name__ == '__main__':
                     s = parent.recv()
                     total_states[worker_id, t] = s
 
-                total_actions[:, t], total_int_values[:, t], total_ext_values[:, t], total_log_probs[:, t] = \
-                    brain.get_actions_and_values(total_states[:, t], batch=True)
+                total_actions[:, t], total_int_values[:, t], total_ext_values[:, t], total_log_probs[:, t], \
+                total_action_probs[:, t] = brain.get_actions_and_values(total_states[:, t], batch=True)
                 for parent, a in zip(parents, total_actions[:, t]):
                     parent.send(a)
 
@@ -107,15 +109,12 @@ if __name__ == '__main__':
                     episode += 1
                     if "visited_room" in infos[0]["episode"]:
                         visited_rooms = infos[0]["episode"]["visited_room"]
-                    if episode == 1:
-                        running_ext_reward = episode_ext_reward
-                    else:
-                        running_ext_reward = 0.99 * running_ext_reward + 0.01 * episode_ext_reward
+                        logger.log_episode(episode, episode_ext_reward, visited_rooms)
                     episode_ext_reward = 0
 
             total_next_obs = np.concatenate(total_next_obs)
             total_int_rewards = brain.calculate_int_rewards(total_next_obs)
-            _, next_int_values, next_ext_values, _ = brain.get_actions_and_values(next_states, batch=True)
+            _, next_int_values, next_ext_values, *_ = brain.get_actions_and_values(next_states, batch=True)
             # next_ext_values *= (1 - total_dones[:, -1])
 
             total_int_rewards = brain.normalize_int_rewards(total_int_rewards)
@@ -138,27 +137,10 @@ if __name__ == '__main__':
                                         next_ext_values=next_ext_values,
                                         total_next_obs=total_next_obs)
 
-            if iteration % config["interval"] == 0:
-                print(f"Iter: {iteration}| "
-                      f"Episode: {episode}| "
-                      f"Visited_rooms: {visited_rooms}| "
-                      f"Ep_ext_reward: {episode_ext_reward:.3f}| "
-                      f"Running_ext_reward: {running_ext_reward:.3f}| "
-                      f"Int_reward: {total_int_rewards[0].mean():.3f}| "
-                      f"Iter_duration: {time.time() - start_time:.3f}| ")
-                brain.save_params(episode, iteration, running_ext_reward, visited_rooms)
-
-            with SummaryWriter(config["env_name"] + "/logs/" + time_dir) as writer:
-                writer.add_scalar("Running_ext_reward", running_ext_reward, episode)
-                writer.add_scalar("Visited rooms", len(list(visited_rooms)), episode)
-                writer.add_scalar("Int_reward", total_int_rewards[0].mean(), iteration)
-                writer.add_scalar("Actor_loss", training_logs[0], iteration)
-                writer.add_scalar("Ext value loss", training_logs[1], iteration)
-                writer.add_scalar("Int value loss", training_logs[2], iteration)
-                writer.add_scalar("RND loss", training_logs[3], iteration)
-                writer.add_scalar("Entropy", training_logs[4], iteration)
-                writer.add_scalar("Explained int variance", training_logs[5], iteration)
-                writer.add_scalar("Explained ext variance", training_logs[6], iteration)
+            logger.log_iteration(iteration,
+                                 training_logs,
+                                 total_int_rewards[0].mean(),
+                                 total_action_probs[0].max(-1).mean())
 
     else:
         play = Play(config["env_name"], brain)
