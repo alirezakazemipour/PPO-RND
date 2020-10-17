@@ -34,14 +34,14 @@ class Brain:
             dist, int_value, ext_value, action_prob = self.current_policy(state)
             action = dist.sample()
             log_prob = dist.log_prob(action)
-        return action.cpu().numpy(), int_value.detach().cpu().numpy().squeeze(), \
-               ext_value.detach().cpu().numpy().squeeze(), log_prob.cpu().numpy(), action_prob.cpu().numpy()
+        return action.cpu().numpy(), int_value.cpu().numpy().squeeze(), \
+               ext_value.cpu().numpy().squeeze(), log_prob.cpu().numpy(), action_prob.cpu().numpy()
 
     def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states):
         idxes = np.random.randint(0, len(states), self.config["batch_size"])
 
-        yield states[idxes], actions[idxes], int_returns[idxes], ext_returns[idxes], advs[idxes], \
-              log_probs[idxes], next_states[idxes]
+        yield states[idxes], actions[idxes], int_returns[idxes], ext_returns[idxes], advs[idxes], log_probs[idxes],\
+              next_states[idxes]
 
     @mean_of_list
     def train(self, states, actions, int_rewards,
@@ -86,7 +86,7 @@ class Brain:
                 entropy = dist.entropy().mean()
                 new_log_prob = dist.log_prob(action)
                 ratio = (new_log_prob - old_log_prob).exp()
-                pg_loss = self.compute_ac_loss(ratio, adv)
+                pg_loss = self.compute_pg_loss(ratio, adv)
 
                 int_value_loss = self.mse_loss(int_value.squeeze(-1), int_return)
                 ext_value_loss = self.mse_loss(ext_value.squeeze(-1), ext_return)
@@ -112,7 +112,8 @@ class Brain:
     def optimize(self, loss):
         self.optimizer.zero_grad()
         loss.backward()
-        clip_grad_norm_(self.total_trainable_params)
+        # clip_grad_norm_(self.total_trainable_params)
+        torch.nn.utils.clip_grad_norm_(self.total_trainable_params, 0.5)
         self.optimizer.step()
 
     def get_gae(self, rewards, values, next_values, dones, gamma):
@@ -152,7 +153,7 @@ class Brain:
 
         return intrinsic_rewards / np.sqrt(self.int_reward_rms.var)
 
-    def compute_ac_loss(self, ratio, adv):
+    def compute_pg_loss(self, ratio, adv):
         new_r = ratio * adv
         clamped_r = torch.clamp(ratio, 1 - self.config["clip_range"], 1 + self.config["clip_range"]) * adv
         loss = torch.min(new_r, clamped_r)
@@ -168,8 +169,7 @@ class Brain:
         loss = (mask * loss).sum() / torch.max(mask.sum(), torch.Tensor([1]).to(self.device))
         return loss
 
-    def load_params(self):
-        checkpoint = torch.load("params.pth", map_location=self.device)
+    def set_from_checkpoint(self, checkpoint):
         self.current_policy.load_state_dict(checkpoint["current_policy_state_dict"])
         self.predictor_model.load_state_dict(checkpoint["predictor_model_state_dict"])
         self.target_model.load_state_dict(checkpoint["target_model_state_dict"])
@@ -182,12 +182,6 @@ class Brain:
         self.int_reward_rms.mean = checkpoint["int_reward_rms_mean"]
         self.int_reward_rms.var = checkpoint["int_reward_rms_var"]
         self.int_reward_rms.count = checkpoint["int_reward_rms_count"]
-        iteration = checkpoint["iteration"]
-        running_reward = checkpoint["running_reward"]
-        episode = checkpoint["episode"]
-        visited_rooms = checkpoint["visited_rooms"]
-
-        return running_reward, iteration, episode, visited_rooms
 
     def set_to_eval_mode(self):
         self.current_policy.eval()

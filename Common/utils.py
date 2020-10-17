@@ -9,7 +9,7 @@ from torch._six import inf
 def mean_of_list(func):
     def function_wrapper(*args, **kwargs):
         lists = func(*args, **kwargs)
-        return [sum(list) / len(list) for list in lists[:-4]] + [explained_variance(lists[-4], lists[-3])] +\
+        return [sum(list) / len(list) for list in lists[:-4]] + [explained_variance(lists[-4], lists[-3])] + \
                [explained_variance(lists[-2], lists[-1])]
 
     return function_wrapper
@@ -32,6 +32,8 @@ def stack_states(stacked_frames, state, is_new_episode):
     return stacked_frames
 
 
+# Calculates if value function is a good predictor of the returns (ev > 1)
+# or if it's just worse than predicting nothing (ev =< 0)
 def explained_variance(ypred, y):
     """
     Computes fraction of variance that ypred explains about y.

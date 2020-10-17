@@ -11,6 +11,8 @@ def get_params():
                              " counted by iterations.")
     parser.add_argument("--do_train", action="store_false",
                         help="The flag determines whether to train the agent or play with it.")
+    parser.add_argument("--render", action="store_true",
+                        help="The flag determines whether to render each agent or not.")
     parser.add_argument("--train_from_scratch", action="store_false",
                         help="The flag determines whether to train from scratch or continue previous tries.")
 
