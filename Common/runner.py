@@ -9,7 +9,6 @@ class Worker:
         self.max_episode_steps = self.config["max_frames_per_episode"]
         self.state_shape = self.config["state_shape"]
         self.env = make_atari(self.env_name, self.max_episode_steps)
-        self.lives = self.env.ale.lives()
         self._stacked_states = np.zeros(self.state_shape, dtype=np.uint8)
         self.reset()
 
@@ -22,7 +21,6 @@ class Worker:
     def reset(self):
         state = self.env.reset()
         self._stacked_states = stack_states(self._stacked_states, state, True)
-        self.lives = self.env.ale.lives()
 
     def step(self, conn):
         t = 1

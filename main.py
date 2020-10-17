@@ -9,7 +9,7 @@ import gym
 from tqdm import tqdm
 
 
-# TODO: Load weights !!!
+# TODO: Load weights and KL !!!
 
 def run_workers(worker, conn):
     worker.step(conn)
@@ -47,7 +47,7 @@ if __name__ == '__main__':
             parents.append(parent_conn)
             p.start()
 
-        if not config["train_from_scratch"]:
+        if config["train_from_scratch"]:
             print("---Pre_normalization started.---")
             states = []
             total_pre_normalization_steps = config["rollout_length"] * config["pre_normalization_steps"]

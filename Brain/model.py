@@ -2,7 +2,7 @@ from abc import ABC
 import numpy as np
 from torch import nn
 from torch.nn import functional as F
-from torch.distributions import Categorical
+from torch.distributions.categorical import Categorical
 # from torchsummary import summary
 
 
@@ -77,8 +77,9 @@ class PolicyModel(nn.Module, ABC):
         x_pi = x + F.relu(self.extra_policy_fc(x))
         int_value = self.int_value(x_v)
         ext_value = self.ext_value(x_v)
-        probs = F.softmax(self.policy(x_pi), dim=1)
-        dist = Categorical(probs)
+        policy = self.policy(x_pi)
+        probs = F.softmax(policy, dim=1)
+        dist = Categorical(logits=policy)
 
         return dist, int_value, ext_value, probs
 

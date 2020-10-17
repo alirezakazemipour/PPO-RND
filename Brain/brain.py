@@ -49,9 +49,9 @@ class Brain:
               log_probs, next_int_values, next_ext_values, total_next_obs):
 
         int_rets = self.get_gae(int_rewards, int_values, next_int_values,
-                                   np.zeros_like(dones), self.config["int_gamma"])
+                                np.zeros_like(dones), self.config["int_gamma"])
         ext_rets = self.get_gae(ext_rewards, ext_values, next_ext_values,
-                                   dones, self.config["ext_gamma"])
+                                dones, self.config["ext_gamma"])
 
         ext_values = np.concatenate(ext_values)
         ext_advs = ext_rets - ext_values
@@ -103,6 +103,9 @@ class Brain:
                 int_v_losses.append(int_value_loss.item())
                 rnd_losses.append(rnd_loss.item())
                 entropies.append(entropy.item())
+                # https://github.com/openai/random-network-distillation/blob/f75c0f1efa473d5109d487062fd8ed49ddce6634/ppo_agent.py#L187
+                # approxkl = 0.5 * ((new_log_prob - old_log_prob).pow(2)).mean()
+                # maxkl = 0.5 * ((new_log_prob - old_log_prob).pow(2)).max()
 
         return pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies, int_values, int_rets, ext_values, ext_rets
 
@@ -164,24 +167,6 @@ class Brain:
         mask = (mask < self.config["predictor_proportion"]).float()
         loss = (mask * loss).sum() / torch.max(mask.sum(), torch.Tensor([1]).to(self.device))
         return loss
-
-    def save_params(self, episode, iteration, running_reward, visited_rooms):
-        torch.save({"current_policy_state_dict": self.current_policy.state_dict(),
-                    "predictor_model_state_dict": self.predictor_model.state_dict(),
-                    "target_model_state_dict": self.target_model.state_dict(),
-                    "optimizer_state_dict": self.optimizer.state_dict(),
-                    "state_rms_mean": self.state_rms.mean,
-                    "state_rms_var": self.state_rms.var,
-                    "state_rms_count": self.state_rms.count,
-                    "int_reward_rms_mean": self.int_reward_rms.mean,
-                    "int_reward_rms_var": self.int_reward_rms.var,
-                    "int_reward_rms_count": self.int_reward_rms.count,
-                    "iteration": iteration,
-                    "episode": episode,
-                    "running_reward": running_reward,
-                    "visited_rooms": visited_rooms
-                    },
-                   "params.pth")
 
     def load_params(self):
         checkpoint = torch.load("params.pth", map_location=self.device)
