@@ -76,7 +76,7 @@ if __name__ == '__main__':
         init_actions = np.zeros(rollout_base_shape, dtype=np.uint8)
         init_action_probs = np.zeros(rollout_base_shape + (config["n_actions"],))
         init_int_rewards = np.zeros(rollout_base_shape)
-        init_ext_rewards = np.zeros(rollout_base_shape, dtype=np.int8)
+        init_ext_rewards = np.zeros(rollout_base_shape)
         init_dones = np.zeros(rollout_base_shape, dtype=np.bool)
         init_int_values = np.zeros(rollout_base_shape)
         init_ext_values = np.zeros(rollout_base_shape)
@@ -151,5 +151,6 @@ if __name__ == '__main__':
                                  total_action_probs[0].max(-1).mean())
 
     else:
-        play = Play(config["env_name"], brain)
+        checkpoint = logger.load_weights()
+        play = Play(config["env_name"], brain, checkpoint)
         play.evaluate()

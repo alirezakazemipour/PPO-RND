@@ -9,6 +9,7 @@ from Common.utils import mean_of_list, RunningMeanStd, clip_grad_norm_
 class Brain:
     def __init__(self, **config):
         self.config = config
+        self.mini_batch_size = self.config["batch_size"]
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.obs_shape = self.config["obs_shape"]
 
@@ -38,10 +39,11 @@ class Brain:
                ext_value.cpu().numpy().squeeze(), log_prob.cpu().numpy(), action_prob.cpu().numpy()
 
     def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states):
-        idxes = np.random.randint(0, len(states), self.config["batch_size"])
-
-        yield states[idxes], actions[idxes], int_returns[idxes], ext_returns[idxes], advs[idxes], log_probs[idxes],\
-              next_states[idxes]
+        full_batch_size = len(states)
+        for _ in range(full_batch_size // self.mini_batch_size):
+            indices = np.random.randint(0, full_batch_size, self.mini_batch_size)
+            yield states[indices], actions[indices], int_returns[indices], ext_returns[indices], advs[indices],\
+                  log_probs[indices], next_states[indices]
 
     @mean_of_list
     def train(self, states, actions, int_rewards,
@@ -112,8 +114,8 @@ class Brain:
     def optimize(self, loss):
         self.optimizer.zero_grad()
         loss.backward()
-        # clip_grad_norm_(self.total_trainable_params)
-        torch.nn.utils.clip_grad_norm_(self.total_trainable_params, 0.5)
+        clip_grad_norm_(self.total_trainable_params)
+        # torch.nn.utils.clip_grad_norm_(self.total_trainable_params, 0.5)
         self.optimizer.step()
 
     def get_gae(self, rewards, values, next_values, dones, gamma):

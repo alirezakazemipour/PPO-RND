@@ -5,11 +5,11 @@ from Common.utils import *
 
 
 class Play:
-    def __init__(self, env, agent, max_episode=10):
+    def __init__(self, env, agent, checkpoint, max_episode=10):
         self.env = make_atari(env)
         self.max_episode = max_episode
         self.agent = agent
-        self.agent.load_params()
+        self.agent.set_from_checkpoint(checkpoint)
         self.agent.set_to_eval_mode()
         self.device = device("cuda" if torch.cuda.is_available() else "cpu")
         self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
@@ -28,8 +28,9 @@ class Play:
             episode_reward = 0
             clipped_ep_reward = 0
             # x = input("Push any button to proceed...")
-            for _ in range(self.env._max_episode_steps):
-                action, _, _ = self.agent.get_actions_and_values(stacked_states)
+            done = False
+            while not done:
+                action, *_ = self.agent.get_actions_and_values(stacked_states)
                 s_, r, done, info = self.env.step(action)
                 episode_reward += r
                 clipped_ep_reward += np.sign(r)

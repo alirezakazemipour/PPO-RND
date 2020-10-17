@@ -19,6 +19,9 @@ class Logger:
         self.episode = 0
         self.episode_ext_reward = 0
         self.running_ext_reward = 0
+        self.running_int_reward = 0
+        self.running_act_prob = 0
+        self.running_training_logs = 0
         self.visited_rooms = set([1])
         self.max_episode_reward = -np.inf
         self.moving_avg_window = 10
@@ -29,6 +32,8 @@ class Logger:
         if self.config["do_train"] and self.config["train_from_scratch"]:
             self.create_wights_folder()
             self.log_params()
+
+        self.exp_avg = lambda x, y: 0.9 * x + 0.1 * y if (y != 0).all() else y
 
     def create_wights_folder(self):
         if not os.path.exists("Models"):
@@ -47,7 +52,11 @@ class Logger:
         self.duration = time.time() - self.start_time
 
     def log_iteration(self, *args):
-        iteration, training_logs, int_rewards, action_prob = args
+        iteration, training_logs, int_reward, action_prob = args
+
+        self.running_act_prob = self.exp_avg(self.running_act_prob, action_prob)
+        self.running_int_reward = self.exp_avg(self.running_int_reward, int_reward)
+        self.running_training_logs = self.exp_avg(self.running_training_logs, np.array(training_logs))
 
         if iteration % (self.config["interval"] // 3) == 0:
             self.save_params(self.episode, iteration)
@@ -58,15 +67,15 @@ class Logger:
             writer.add_scalar("Visited rooms", len(list(self.visited_rooms)), self.episode)
             writer.add_scalar("Running last 10 Ext Reward", self.running_last_10_ext_r, self.episode)
             writer.add_scalar("Max Episode Ext Reward", self.max_episode_reward, self.episode)
-            writer.add_scalar("Action Probability", action_prob, iteration)
-            writer.add_scalar("Intrinsic Reward", int_rewards, iteration)
-            writer.add_scalar("PG Loss", training_logs[0], iteration)
-            writer.add_scalar("Ext Value Loss", training_logs[1], iteration)
-            writer.add_scalar("Int Value Loss", training_logs[2], iteration)
-            writer.add_scalar("RND Loss", training_logs[3], iteration)
-            writer.add_scalar("Entropy", training_logs[4], iteration)
-            writer.add_scalar("Intrinsic Explained variance", training_logs[5], iteration)
-            writer.add_scalar("Extrinsic Explained variance", training_logs[6], iteration)
+            writer.add_scalar("Running Action Probability", self.running_act_prob, iteration)
+            writer.add_scalar("Running Intrinsic Reward", self.running_int_reward, iteration)
+            writer.add_scalar("Running PG Loss", self.running_training_logs[0], iteration)
+            writer.add_scalar("Running Ext Value Loss", self.running_training_logs[1], iteration)
+            writer.add_scalar("Running Int Value Loss", self.running_training_logs[2], iteration)
+            writer.add_scalar("Running RND Loss", self.running_training_logs[3], iteration)
+            writer.add_scalar("Running Entropy", self.running_training_logs[4], iteration)
+            writer.add_scalar("Running Intrinsic Explained variance", self.running_training_logs[5], iteration)
+            writer.add_scalar("Running Extrinsic Explained variance", self.running_training_logs[6], iteration)
 
         self.off()
         if iteration % self.config["interval"] == 0:
@@ -92,10 +101,7 @@ class Logger:
 
         self.max_episode_reward = max(self.max_episode_reward, self.episode_ext_reward)
 
-        if self.running_ext_reward == 0:
-            self.running_ext_reward = self.episode_ext_reward
-        else:
-            self.running_ext_reward = 0.99 * self.running_ext_reward + 0.01 * self.episode_ext_reward
+        self.running_ext_reward = self.exp_avg(self.running_ext_reward, self.episode_ext_reward)
 
         self.last_10_ep_rewards.append(self.episode_ext_reward)
         if len(self.last_10_ep_rewards) == self.moving_avg_window:
