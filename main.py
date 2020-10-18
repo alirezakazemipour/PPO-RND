@@ -20,7 +20,7 @@ if __name__ == '__main__':
     config.update({"n_actions": test_env.action_space.n})
     test_env.close()
 
-    config.update({"batch_size": config["rollout_length"] * config["n_workers"] // config["n_mini_batch"]})
+    config.update({"batch_size": (config["rollout_length"] * config["n_workers"]) // config["n_mini_batch"]})
     config.update({"predictor_proportion": 32 / config["n_workers"]})
 
     brain = Brain(**config)
@@ -129,7 +129,6 @@ if __name__ == '__main__':
             total_next_obs = concatenate(total_next_obs)
             total_int_rewards = brain.calculate_int_rewards(total_next_obs)
             _, next_int_values, next_ext_values, *_ = brain.get_actions_and_values(next_states, batch=True)
-            # next_ext_values *= (1 - total_dones[:, -1])
 
             total_int_rewards = brain.normalize_int_rewards(total_int_rewards)
 

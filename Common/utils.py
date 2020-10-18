@@ -62,15 +62,15 @@ def make_atari(env_id, max_episode_steps):
 
 class StickyActionEnv(gym.Wrapper):
     def __init__(self, env, p=0.25):
-        gym.Wrapper.__init__(self, env)
+        super(StickyActionEnv, self).__init__(env)
         self.p = p
         self.last_action = 0
 
     def step(self, action):
         if np.random.uniform() < self.p:
             action = self.last_action
-        else:
-            self.last_action = action
+
+        self.last_action = action
         return self.env.step(action)
 
     def reset(self):
@@ -83,8 +83,8 @@ class RepeatActionEnv(gym.Wrapper):
         gym.Wrapper.__init__(self, env)
         self.successive_frame = np.zeros((2,) + self.env.observation_space.shape, dtype=np.uint8)
 
-    def reset(self):
-        return self.env.reset()
+    def reset(self, **kwargs):
+        return self.env.reset(**kwargs)
 
     def step(self, action):
         reward, done = 0, False

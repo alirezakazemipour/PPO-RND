@@ -40,7 +40,7 @@ class Brain:
 
     def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states):
         full_batch_size = len(states)
-        for _ in range(full_batch_size // self.mini_batch_size):
+        for _ in range(self.config["n_mini_batch"]):
             indices = np.random.randint(0, full_batch_size, self.mini_batch_size)
             yield states[indices], actions[indices], int_returns[indices], ext_returns[indices], advs[indices],\
                   log_probs[indices], next_states[indices]
@@ -126,7 +126,7 @@ class Brain:
             extended_values[worker] = np.append(values[worker], next_values[worker])
             gae = 0
             for step in reversed(range(len(rewards[worker]))):
-                delta = rewards[worker][step] + gamma * (extended_values[worker][step + 1]) * (1 - dones[worker][step]) \
+                delta = rewards[worker][step] + gamma * (extended_values[worker][step + 1]) * (1 - dones[worker][step])\
                         - extended_values[worker][step]
                 gae = delta + gamma * self.config["lambda"] * (1 - dones[worker][step]) * gae
                 returns[worker].insert(0, gae + extended_values[worker][step])
