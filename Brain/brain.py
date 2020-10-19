@@ -92,7 +92,6 @@ class Brain:
 
                 int_value_loss = self.mse_loss(int_value.squeeze(-1), int_return)
                 ext_value_loss = self.mse_loss(ext_value.squeeze(-1), ext_return)
-
                 critic_loss = 0.5 * (int_value_loss + ext_value_loss)
 
                 rnd_loss = self.calculate_rnd_loss(next_state)
