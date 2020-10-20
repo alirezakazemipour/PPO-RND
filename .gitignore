@@ -14,7 +14,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-*.pth
+#*.pth
 .idea/
 Logs/
 lib/

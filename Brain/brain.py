@@ -40,7 +40,7 @@ class Brain:
 
     def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states):
         full_batch_size = len(states)
-        for _ in range(self.config["n_mini_batch"]):
+        for _ in range(full_batch_size // self.mini_batch_size):
             indices = np.random.randint(0, full_batch_size, self.mini_batch_size)
             yield states[indices], actions[indices], int_returns[indices], ext_returns[indices], advs[indices],\
                   log_probs[indices], next_states[indices]
@@ -92,6 +92,7 @@ class Brain:
 
                 int_value_loss = self.mse_loss(int_value.squeeze(-1), int_return)
                 ext_value_loss = self.mse_loss(ext_value.squeeze(-1), ext_return)
+
                 critic_loss = 0.5 * (int_value_loss + ext_value_loss)
 
                 rnd_loss = self.calculate_rnd_loss(next_state)

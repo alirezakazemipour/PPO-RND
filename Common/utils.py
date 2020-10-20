@@ -52,7 +52,7 @@ def make_atari(env_id, max_episode_steps):
     env = gym.make(env_id)
     env._max_episode_steps = max_episode_steps * 4
     assert 'NoFrameskip' in env.spec.id
-    env = StickyActionEnv(env)
+    #env = StickyActionEnv(env)
     env = RepeatActionEnv(env)
     env = MontezumaVisitedRoomEnv(env, 3)
     env = AddRandomStateToInfoEnv(env)
@@ -190,7 +190,7 @@ class RewardForwardFilter(object):
 
 def clip_grad_norm_(parameters, norm_type: float = 2.0):
     """
-    This is the official clip_grad_norm implemented in pytorch but the max_norm part has been removed.
+    This the official clip_grad_norm implemented in pytorch but the max_norm part has been removed.
     https://github.com/pytorch/pytorch/blob/52f2db752d2b29267da356a06ca91e10cd732dbc/torch/nn/utils/clip_grad.py#L9
     """
     if isinstance(parameters, torch.Tensor):
