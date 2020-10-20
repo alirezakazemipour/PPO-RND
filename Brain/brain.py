@@ -39,8 +39,17 @@ class Brain:
                ext_value.cpu().numpy().squeeze(), log_prob.cpu().numpy(), action_prob.cpu().numpy()
 
     def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states):
+        states = torch.ByteTensor(states).permute([0, 3, 1, 2]).contiguous().to(self.device)
+        next_states = torch.Tensor(next_states).to(self.device)
+        actions = torch.ByteTensor(actions).to(self.device)
+        advs = torch.Tensor(advs).to(self.device)
+        int_returns = torch.Tensor(int_returns).to(self.device)
+        ext_returns = torch.Tensor(ext_returns).to(self.device)
+        log_probs = torch.Tensor(log_probs).to(self.device)
+
         full_batch_size = len(states)
-        for _ in range(full_batch_size // self.mini_batch_size):
+
+        for _ in range(self.config["n_mini_batch"]):
             indices = np.random.randint(0, full_batch_size, self.mini_batch_size)
             yield states[indices], actions[indices], int_returns[indices], ext_returns[indices], advs[indices],\
                   log_probs[indices], next_states[indices]
@@ -76,13 +85,6 @@ class Brain:
                                            advs=advs,
                                            log_probs=log_probs,
                                            next_states=total_next_obs):
-                state = torch.ByteTensor(state).permute([0, 3, 1, 2]).contiguous().to(self.device)
-                next_state = torch.Tensor(next_state).to(self.device)
-                action = torch.ByteTensor(action).to(self.device)
-                adv = torch.Tensor(adv).to(self.device)
-                int_return = torch.Tensor(int_return).to(self.device)
-                ext_return = torch.Tensor(ext_return).to(self.device)
-                old_log_prob = torch.Tensor(old_log_prob).to(self.device)
 
                 dist, int_value, ext_value, _ = self.current_policy(state)
                 entropy = dist.entropy().mean()

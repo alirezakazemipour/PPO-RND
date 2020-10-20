@@ -18,8 +18,6 @@ if __name__ == '__main__':
 
     test_env = gym.make(config["env_name"])
     config.update({"n_actions": test_env.action_space.n})
-    config["do_train"] = False
-
     test_env.close()
 
     config.update({"batch_size": (config["rollout_length"] * config["n_workers"]) // config["n_mini_batch"]})
@@ -27,6 +25,7 @@ if __name__ == '__main__':
 
     brain = Brain(**config)
     logger = Logger(brain, **config)
+
     if config["do_train"]:
         if not config["train_from_scratch"]:
             checkpoint = logger.load_weights()
