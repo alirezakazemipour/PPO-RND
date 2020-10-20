@@ -30,7 +30,7 @@ if __name__ == '__main__':
         if not config["train_from_scratch"]:
             checkpoint = logger.load_weights()
             brain.set_from_checkpoint(checkpoint)
-            running_ext_reward = checkpoint["running_reward"]
+            running_ext_reward = checkpoint["running_reward"] #Todo
             init_iteration = checkpoint["iteration"]
             episode = checkpoint["episode"]
             visited_rooms = checkpoint["visited_rooms"]
@@ -137,7 +137,7 @@ if __name__ == '__main__':
             training_logs = brain.train(states=concatenate(total_states),
                                         actions=concatenate(total_actions),
                                         int_rewards=total_int_rewards,
-                                        ext_rewards=total_ext_rewards.clip(-1, 1),
+                                        ext_rewards=total_ext_rewards,
                                         dones=total_dones,
                                         int_values=total_int_values,
                                         ext_values=total_ext_values,

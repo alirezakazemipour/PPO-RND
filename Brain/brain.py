@@ -2,6 +2,7 @@ from Brain.model import PolicyModel, PredictorModel, TargetModel
 import torch
 from torch import from_numpy
 import numpy as np
+from numpy import concatenate  # Make coder faster.
 from torch.optim.adam import Adam
 from Common.utils import mean_of_list, RunningMeanStd, clip_grad_norm_
 
@@ -47,12 +48,11 @@ class Brain:
         ext_returns = torch.Tensor(ext_returns).to(self.device)
         log_probs = torch.Tensor(log_probs).to(self.device)
 
-        full_batch_size = len(states)
+        indices = np.random.randint(0, len(states), (self.config["n_mini_batch"], self.mini_batch_size))
 
-        for _ in range(self.config["n_mini_batch"]):
-            indices = np.random.randint(0, full_batch_size, self.mini_batch_size)
-            yield states[indices], actions[indices], int_returns[indices], ext_returns[indices], advs[indices],\
-                  log_probs[indices], next_states[indices]
+        for idx in indices:
+            yield states[idx], actions[idx], int_returns[idx], ext_returns[idx], advs[idx], \
+                  log_probs[idx], next_states[idx]
 
     @mean_of_list
     def train(self, states, actions, int_rewards,
@@ -64,16 +64,16 @@ class Brain:
         ext_rets = self.get_gae(ext_rewards, ext_values, next_ext_values,
                                 dones, self.config["ext_gamma"])
 
-        ext_values = np.concatenate(ext_values)
+        ext_values = concatenate(ext_values)
         ext_advs = ext_rets - ext_values
 
-        int_values = np.concatenate(int_values)
+        int_values = concatenate(int_values)
         int_advs = int_rets - int_values
 
         advs = ext_advs * self.config["ext_adv_coeff"] + int_advs * self.config["int_adv_coeff"]
 
         self.state_rms.update(total_next_obs)
-        total_next_obs = ((total_next_obs - self.state_rms.mean) / np.sqrt(self.state_rms.var)).clip(-5, 5)
+        total_next_obs = ((total_next_obs - self.state_rms.mean) / (self.state_rms.var ** 0.5)).clip(-5, 5)
 
         pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies = [], [], [], [], []
         for epoch in range(self.config["n_epochs"]):
@@ -85,7 +85,6 @@ class Brain:
                                            advs=advs,
                                            log_probs=log_probs,
                                            next_states=total_next_obs):
-
                 dist, int_value, ext_value, _ = self.current_policy(state)
                 entropy = dist.entropy().mean()
                 new_log_prob = dist.log_prob(action)
@@ -121,23 +120,24 @@ class Brain:
         self.optimizer.step()
 
     def get_gae(self, rewards, values, next_values, dones, gamma):
-
+        lam = self.config["lambda"]  # Make code faster.
         returns = [[] for _ in range(self.config["n_workers"])]
         extended_values = np.zeros((self.config["n_workers"], self.config["rollout_length"] + 1))
         for worker in range(self.config["n_workers"]):
             extended_values[worker] = np.append(values[worker], next_values[worker])
             gae = 0
             for step in reversed(range(len(rewards[worker]))):
-                delta = rewards[worker][step] + gamma * (extended_values[worker][step + 1]) * (1 - dones[worker][step])\
+                delta = rewards[worker][step] + gamma * (extended_values[worker][step + 1]) * (1 - dones[worker][step]) \
                         - extended_values[worker][step]
-                gae = delta + gamma * self.config["lambda"] * (1 - dones[worker][step]) * gae
+                gae = delta + gamma * lam * (1 - dones[worker][step]) * gae
                 returns[worker].insert(0, gae + extended_values[worker][step])
 
-        return np.concatenate(returns)
+        return concatenate(returns)
 
     def calculate_int_rewards(self, next_states):
-        next_states = np.clip((next_states - self.state_rms.mean) / (self.state_rms.var ** 0.5), -5, 5)
-        next_states = from_numpy(next_states).float().to(self.device)
+        next_states = np.clip((next_states - self.state_rms.mean) / (self.state_rms.var ** 0.5), -5, 5,
+                              dtype="float32")  # dtype to avoid '.float()' call for pytorch.
+        next_states = from_numpy(next_states).to(self.device)
         predictor_encoded_features = self.predictor_model(next_states)
         target_encoded_features = self.target_model(next_states)
 
@@ -147,15 +147,16 @@ class Brain:
     def normalize_int_rewards(self, intrinsic_rewards):
         # OpenAI's usage of Forward filter is definitely wrong;
         # Because: https://github.com/openai/random-network-distillation/issues/16#issuecomment-488387659
+        gamma = self.config["int_gamma"]  # Make code faster.
         intrinsic_returns = [[] for _ in range(self.config["n_workers"])]
         for worker in range(self.config["n_workers"]):
             rewems = 0
-            for step in reversed(range(len(intrinsic_rewards[worker]))):
-                rewems = rewems * self.config["int_gamma"] + intrinsic_rewards[worker][step]
+            for step in reversed(range(self.config["rollout_length"])):
+                rewems = rewems * gamma + intrinsic_rewards[worker][step]
                 intrinsic_returns[worker].insert(0, rewems)
         self.int_reward_rms.update(np.ravel(intrinsic_returns).reshape(-1, 1))
 
-        return intrinsic_rewards / np.sqrt(self.int_reward_rms.var)
+        return intrinsic_rewards / (self.int_reward_rms.var ** 0.5)
 
     def compute_pg_loss(self, ratio, adv):
         new_r = ratio * adv
@@ -168,7 +169,7 @@ class Brain:
         encoded_target_features = self.target_model(next_state)
         encoded_predictor_features = self.predictor_model(next_state)
         loss = (encoded_predictor_features - encoded_target_features).pow(2).mean(-1)
-        mask = torch.rand(loss.size()).to(self.device)
+        mask = torch.rand(loss.size(), device=self.device)
         mask = (mask < self.config["predictor_proportion"]).float()
         loss = (mask * loss).sum() / torch.max(mask.sum(), torch.Tensor([1]).to(self.device))
         return loss
