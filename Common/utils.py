@@ -48,12 +48,14 @@ def explained_variance(ypred, y):
     return np.nan if vary == 0 else 1 - np.var(y - ypred) / vary
 
 
-def make_atari(env_id, max_episode_steps):
+def make_atari(env_id, max_episode_steps, sticky_action=True, max_and_skip=True):
     env = gym.make(env_id)
     env._max_episode_steps = max_episode_steps * 4
     assert 'NoFrameskip' in env.spec.id
-    env = StickyActionEnv(env)
-    env = RepeatActionEnv(env)
+    if sticky_action:
+        env = StickyActionEnv(env)
+    if max_and_skip:
+        env = RepeatActionEnv(env)
     env = MontezumaVisitedRoomEnv(env, 3)
     env = AddRandomStateToInfoEnv(env)
 

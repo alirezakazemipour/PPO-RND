@@ -6,7 +6,7 @@ from Common.utils import *
 
 class Play:
     def __init__(self, env, agent, checkpoint, max_episode=10):
-        self.env = make_atari(env, 4500)
+        self.env = make_atari(env, 4500, sticky_action=False)
         self.max_episode = max_episode
         self.agent = agent
         self.agent.set_from_checkpoint(checkpoint)
