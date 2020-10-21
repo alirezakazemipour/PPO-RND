@@ -23,7 +23,7 @@ class Brain:
         self.total_trainable_params = list(self.current_policy.parameters()) + list(self.predictor_model.parameters())
         self.optimizer = Adam(self.total_trainable_params, lr=self.config["lr"])
 
-        self.state_rms = RunningMeanStd(shape=self.obs_shape[::-1])
+        self.state_rms = RunningMeanStd(shape=self.obs_shape)
         self.int_reward_rms = RunningMeanStd(shape=(1,))
 
         self.mse_loss = torch.nn.MSELoss()
@@ -31,7 +31,7 @@ class Brain:
     def get_actions_and_values(self, state, batch=False):
         if not batch:
             state = np.expand_dims(state, 0)
-        state = from_numpy(state).permute([0, 3, 1, 2]).contiguous().to(self.device)
+        state = from_numpy(state).to(self.device)
         with torch.no_grad():
             dist, int_value, ext_value, action_prob = self.current_policy(state)
             action = dist.sample()
@@ -40,7 +40,7 @@ class Brain:
                ext_value.cpu().numpy().squeeze(), log_prob.cpu().numpy(), action_prob.cpu().numpy()
 
     def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states):
-        states = torch.ByteTensor(states).permute([0, 3, 1, 2]).contiguous().to(self.device)
+        states = torch.ByteTensor(states).to(self.device)
         next_states = torch.Tensor(next_states).to(self.device)
         actions = torch.ByteTensor(actions).to(self.device)
         advs = torch.Tensor(advs).to(self.device)

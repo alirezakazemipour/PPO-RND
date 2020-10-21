@@ -17,7 +17,7 @@ class PolicyModel(nn.Module, ABC):
         self.state_shape = state_shape
         self.n_actions = n_actions
 
-        w, h, c = state_shape
+        c, w, h = state_shape
         self.conv1 = nn.Conv2d(in_channels=c, out_channels=32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3,
@@ -90,7 +90,7 @@ class TargetModel(nn.Module, ABC):
         super(TargetModel, self).__init__()
         self.state_shape = state_shape
 
-        w, h, c = state_shape
+        c, w, h = state_shape
         self.conv1 = nn.Conv2d(in_channels=c, out_channels=32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1)
@@ -131,7 +131,7 @@ class PredictorModel(nn.Module, ABC):
         super(PredictorModel, self).__init__()
         self.state_shape = state_shape
 
-        w, h, c = state_shape
+        c, w, h = state_shape
         self.conv1 = nn.Conv2d(in_channels=c, out_channels=32, kernel_size=8, stride=4)
         self.conv2 = nn.Conv2d(in_channels=32, out_channels=64, kernel_size=4, stride=2)
         self.conv3 = nn.Conv2d(in_channels=64, out_channels=64, kernel_size=3, stride=1)

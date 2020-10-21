@@ -30,10 +30,13 @@ if __name__ == '__main__':
         if not config["train_from_scratch"]:
             checkpoint = logger.load_weights()
             brain.set_from_checkpoint(checkpoint)
-            running_ext_reward = checkpoint["running_reward"] #Todo
+            running_ext_reward = checkpoint["running_reward"]
             init_iteration = checkpoint["iteration"]
             episode = checkpoint["episode"]
             visited_rooms = checkpoint["visited_rooms"]
+            logger.running_ext_reward = running_ext_reward
+            logger.episode = episode
+            logger.visited_rooms = visited_rooms
         else:
             init_iteration = 0
             running_ext_reward = 0
@@ -65,7 +68,7 @@ if __name__ == '__main__':
 
                 for parent in parents:
                     s_, *_ = parent.recv()
-                    states.append(s_[..., -1].reshape(1, 84, 84))
+                    states.append(s_[-1, ...].reshape(1, 84, 84))
 
                 if len(states) % (config["n_workers"] * config["rollout_length"]) == 0:
                     brain.state_rms.update(np.stack(states))
@@ -84,7 +87,7 @@ if __name__ == '__main__':
         init_ext_values = np.zeros(rollout_base_shape)
         init_log_probs = np.zeros(rollout_base_shape)
         init_next_states = np.zeros((rollout_base_shape[0],) + config["state_shape"], dtype=np.uint8)
-        init_next_obs = np.zeros(rollout_base_shape + config["obs_shape"][::-1], dtype=np.uint8)
+        init_next_obs = np.zeros(rollout_base_shape + config["obs_shape"], dtype=np.uint8)
 
         logger.on()
         episode_ext_reward = 0
@@ -118,7 +121,7 @@ if __name__ == '__main__':
                     total_ext_rewards[worker_id, t] = r
                     total_dones[worker_id, t] = d
                     next_states[worker_id] = s_
-                    total_next_obs[worker_id, t] = s_[..., -1]
+                    total_next_obs[worker_id, t] = s_[-1, ...]
 
                 episode_ext_reward += total_ext_rewards[0, t]
                 if total_dones[0, t]:

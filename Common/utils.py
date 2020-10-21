@@ -25,10 +25,10 @@ def stack_states(stacked_frames, state, is_new_episode):
     frame = preprocessing(state)
 
     if is_new_episode:
-        stacked_frames = np.stack([frame for _ in range(4)], axis=2)
+        stacked_frames = np.stack([frame for _ in range(4)], axis=0)
     else:
-        stacked_frames = stacked_frames[..., 1:]
-        stacked_frames = np.concatenate([stacked_frames, np.expand_dims(frame, axis=2)], axis=2)
+        stacked_frames = stacked_frames[1:, ...]
+        stacked_frames = np.concatenate([stacked_frames, np.expand_dims(frame, axis=0)], axis=0)
     return stacked_frames
 
 

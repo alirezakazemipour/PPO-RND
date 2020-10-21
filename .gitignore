@@ -17,6 +17,8 @@ eggs/
 *.pth
 .idea/
 Logs/
+Models/
+Results/
 lib/
 lib64/
 parts/
