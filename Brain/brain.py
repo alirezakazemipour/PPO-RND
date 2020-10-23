@@ -6,6 +6,8 @@ from numpy import concatenate  # Make coder faster.
 from torch.optim.adam import Adam
 from Common.utils import mean_of_list, RunningMeanStd, clip_grad_norm_
 
+torch.backends.cudnn.benchmark = True
+
 
 class Brain:
     def __init__(self, **config):
@@ -107,8 +109,6 @@ class Brain:
                 rnd_losses.append(rnd_loss.item())
                 entropies.append(entropy.item())
                 # https://github.com/openai/random-network-distillation/blob/f75c0f1efa473d5109d487062fd8ed49ddce6634/ppo_agent.py#L187
-                # approxkl = 0.5 * ((new_log_prob - old_log_prob).pow(2)).mean()
-                # maxkl = 0.5 * ((new_log_prob - old_log_prob).pow(2)).max()
 
         return pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies, int_values, int_rets, ext_values, ext_rets
 
@@ -134,7 +134,9 @@ class Brain:
 
         return concatenate(returns)
 
-    def calculate_int_rewards(self, next_states):
+    def calculate_int_rewards(self, next_states, batch=True):
+        if not batch:
+            next_states = np.expand_dims(next_states, 0)
         next_states = np.clip((next_states - self.state_rms.mean) / (self.state_rms.var ** 0.5), -5, 5,
                               dtype="float32")  # dtype to avoid '.float()' call for pytorch.
         next_states = from_numpy(next_states).to(self.device)
@@ -142,7 +144,10 @@ class Brain:
         target_encoded_features = self.target_model(next_states)
 
         int_reward = (predictor_encoded_features - target_encoded_features).pow(2).mean(1)
-        return int_reward.detach().cpu().numpy().reshape((self.config["n_workers"], self.config["rollout_length"]))
+        if not batch:
+            return int_reward.detach().cpu().numpy()
+        else:
+            return int_reward.detach().cpu().numpy().reshape((self.config["n_workers"], self.config["rollout_length"]))
 
     def normalize_int_rewards(self, intrinsic_rewards):
         # OpenAI's usage of Forward filter is definitely wrong;
