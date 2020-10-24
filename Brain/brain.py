@@ -17,6 +17,7 @@ class Brain:
         self.obs_shape = self.config["obs_shape"]
 
         self.current_policy = PolicyModel(self.config["state_shape"], self.config["n_actions"]).to(self.device)
+        self.train_hidden_state = torch.zeros((self.mini_batch_size, 256), device=self.device)
         self.predictor_model = PredictorModel(self.obs_shape).to(self.device)
         self.target_model = TargetModel(self.obs_shape).to(self.device)
         for param in self.target_model.parameters():
@@ -30,18 +31,21 @@ class Brain:
 
         self.mse_loss = torch.nn.MSELoss()
 
-    def get_actions_and_values(self, state, batch=False):
+    def get_actions_and_values(self, state, done, hidden_state, batch=False):
         if not batch:
             state = np.expand_dims(state, 0)
         state = from_numpy(state).to(self.device)
+        hidden_state *= (1 - done.reshape(-1, 1))
+        hidden_state = torch.Tensor(hidden_state).to(self.device)
+
         with torch.no_grad():
-            dist, int_value, ext_value, action_prob = self.current_policy(state)
+            dist, int_value, ext_value, action_prob, hidden_state = self.current_policy(state, hidden_state)
             action = dist.sample()
             log_prob = dist.log_prob(action)
-        return action.cpu().numpy(), int_value.cpu().numpy().squeeze(), \
-               ext_value.cpu().numpy().squeeze(), log_prob.cpu().numpy(), action_prob.cpu().numpy()
+        return action.cpu().numpy(), int_value.cpu().numpy().squeeze(), ext_value.cpu().numpy().squeeze(), \
+               log_prob.cpu().numpy(), action_prob.cpu().numpy(), hidden_state.cpu().numpy()
 
-    def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states):
+    def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states, dones):
         states = torch.ByteTensor(states).to(self.device)
         next_states = torch.Tensor(next_states).to(self.device)
         actions = torch.ByteTensor(actions).to(self.device)
@@ -49,12 +53,13 @@ class Brain:
         int_returns = torch.Tensor(int_returns).to(self.device)
         ext_returns = torch.Tensor(ext_returns).to(self.device)
         log_probs = torch.Tensor(log_probs).to(self.device)
+        dones = torch.BoolTensor(dones).to(self.device)
 
         indices = np.random.randint(0, len(states), (self.config["n_mini_batch"], self.mini_batch_size))
 
         for idx in indices:
             yield states[idx], actions[idx], int_returns[idx], ext_returns[idx], advs[idx], \
-                  log_probs[idx], next_states[idx]
+                  log_probs[idx], next_states[idx], dones[idx]
 
     @mean_of_list
     def train(self, states, actions, int_rewards,
@@ -79,15 +84,17 @@ class Brain:
 
         pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies = [], [], [], [], []
         for epoch in range(self.config["n_epochs"]):
-            for state, action, int_return, ext_return, adv, old_log_prob, next_state in \
+            for state, action, int_return, ext_return, adv, old_log_prob, next_state, done in \
                     self.choose_mini_batch(states=states,
                                            actions=actions,
                                            int_returns=int_rets,
                                            ext_returns=ext_rets,
                                            advs=advs,
                                            log_probs=log_probs,
-                                           next_states=total_next_obs):
-                dist, int_value, ext_value, _ = self.current_policy(state)
+                                           next_states=total_next_obs,
+                                           dones=concatenate(dones)):
+                dist, int_value, ext_value, _, self.train_hidden_state = \
+                    self.current_policy(state, self.train_hidden_state * (~done.unsqueeze(-1)))
                 entropy = dist.entropy().mean()
                 new_log_prob = dist.log_prob(action)
                 ratio = (new_log_prob - old_log_prob).exp()

@@ -33,14 +33,14 @@ class PolicyModel(nn.Module, ABC):
         flatten_size = conv3_out_w * conv3_out_h * 64
 
         self.fc1 = nn.Linear(in_features=flatten_size, out_features=256)
-        self.fc2 = nn.Linear(in_features=256, out_features=448)
+        self.gru = nn.GRUCell(input_size=256, hidden_size=256)
 
-        self.extra_value_fc = nn.Linear(in_features=448, out_features=448)
-        self.extra_policy_fc = nn.Linear(in_features=448, out_features=448)
+        self.extra_value_fc = nn.Linear(in_features=256, out_features=256)
+        self.extra_policy_fc = nn.Linear(in_features=256, out_features=256)
 
-        self.policy = nn.Linear(in_features=448, out_features=self.n_actions)
-        self.int_value = nn.Linear(in_features=448, out_features=1)
-        self.ext_value = nn.Linear(in_features=448, out_features=1)
+        self.policy = nn.Linear(in_features=256, out_features=self.n_actions)
+        self.int_value = nn.Linear(in_features=256, out_features=1)
+        self.ext_value = nn.Linear(in_features=256, out_features=1)
 
         for layer in self.modules():
             if isinstance(layer, nn.Conv2d):
@@ -49,8 +49,8 @@ class PolicyModel(nn.Module, ABC):
 
         nn.init.orthogonal_(self.fc1.weight, gain=np.sqrt(2))
         self.fc1.bias.data.zero_()
-        nn.init.orthogonal_(self.fc2.weight, gain=np.sqrt(2))
-        self.fc2.bias.data.zero_()
+
+        # self.gru.bias.data.zero_()
 
         nn.init.orthogonal_(self.extra_policy_fc.weight, gain=np.sqrt(0.1))
         self.extra_policy_fc.bias.data.zero_()
@@ -64,7 +64,7 @@ class PolicyModel(nn.Module, ABC):
         nn.init.orthogonal_(self.ext_value.weight, gain=np.sqrt(0.01))
         self.ext_value.bias.data.zero_()
 
-    def forward(self, inputs):
+    def forward(self, inputs, hidden_state):
         x = inputs / 255.
         x = F.relu(self.conv1(x))
         x = F.relu(self.conv2(x))
@@ -72,16 +72,16 @@ class PolicyModel(nn.Module, ABC):
         x = x.contiguous()
         x = x.view(x.size(0), -1)
         x = F.relu(self.fc1(x))
-        x = F.relu(self.fc2(x))
-        x_v = x + F.relu(self.extra_value_fc(x))
-        x_pi = x + F.relu(self.extra_policy_fc(x))
+        h = self.gru(x, hidden_state)
+        x_v = h + F.relu(self.extra_value_fc(h))
+        x_pi = h + F.relu(self.extra_policy_fc(h))
         int_value = self.int_value(x_v)
         ext_value = self.ext_value(x_v)
         policy = self.policy(x_pi)
         probs = F.softmax(policy, dim=1)
         dist = Categorical(probs)
 
-        return dist, int_value, ext_value, probs
+        return dist, int_value, ext_value, probs, h.detach()
 
 
 class TargetModel(nn.Module, ABC):
