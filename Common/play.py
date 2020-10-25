@@ -3,7 +3,7 @@ import os
 from Common.utils import *
 import matplotlib.pyplot as plt
 import matplotlib.animation as animation
-
+import time
 
 class Play:
     def __init__(self, env, agent, checkpoint, max_episode=1):
@@ -30,8 +30,9 @@ class Play:
             episode_reward = 0
             clipped_ep_reward = 0
             done = False
+            hidden_state = np.zeros((1, 256))
             while not done:
-                action, *_ = self.agent.get_actions_and_values(stacked_states)
+                action, *_, hidden_state = self.agent.get_actions_and_values(stacked_states, done, hidden_state)
                 s_, r, done, info = self.env.step(action)
                 episode_reward += r
                 clipped_ep_reward += np.sign(r)
@@ -43,8 +44,8 @@ class Play:
                 obs.append(s_)
 
                 self.VideoWriter.write(cv2.cvtColor(s_, cv2.COLOR_RGB2BGR))
-                # self.env.render()
-                # time.sleep(0.01)
+                self.env.render()
+                time.sleep(0.01)
             print(f"episode reward:{episode_reward}| "
                   f"clipped episode reward:{clipped_ep_reward}| "
                   f"Visited rooms:{info['episode']['visited_room']}")
@@ -74,6 +75,6 @@ class Play:
             im = plt.imshow(obs[frame], animated=True)
             return ln, im
 
-        anim = animation.FuncAnimation(fig, update, frames=np.arange(0, len(int_rewards)), init_func=init, interval=3)
-        anim.save('animation.avi', fps=30)
-        # plt.show()
+        anim = animation.FuncAnimation(fig, update, frames=np.arange(0, len(int_rewards)), init_func=init, interval=2)
+        # anim.save('animation.avi', fps=30)
+        plt.show()

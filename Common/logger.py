@@ -22,12 +22,15 @@ class Logger:
         self.running_int_reward = 0
         self.running_act_prob = 0
         self.running_training_logs = 0
-        self.visited_rooms = set([1])
+        self.visited_rooms = [1]
         self.max_episode_reward = -np.inf
         self.moving_avg_window = 10
         self.moving_weights = np.repeat(1.0, self.moving_avg_window) / self.moving_avg_window
         self.last_10_ep_rewards = deque(maxlen=10)
         self.running_last_10_ext_r = 0  # It is not correct but does not matter.
+
+        self.rooms = {0: 0, 1: 0, 2: 0, 3: 0, 4: 0, 5: 0, 6: 0, 7: 0, 8: 0, 9: 0, 10: 0, 11: 0, 12: 0, 13: 0, 14: 0,
+                      15: 0, 16: 0, 17: 0, 18: 0, 19: 0, 20: 0, 21: 0, 22: 0, 23: 0}
 
         if self.config["do_train"] and self.config["train_from_scratch"]:
             self.create_wights_folder()
@@ -64,7 +67,7 @@ class Logger:
         with SummaryWriter("Logs/" + self.log_dir) as writer:
             writer.add_scalar("Episode Ext Reward", self.episode_ext_reward, self.episode)
             writer.add_scalar("Running Episode Ext Reward", self.running_ext_reward, self.episode)
-            writer.add_scalar("Visited rooms", len(list(self.visited_rooms)), self.episode)
+            writer.add_scalar("Visited rooms", len(self.visited_rooms), self.episode)
             writer.add_scalar("Running last 10 Ext Reward", self.running_last_10_ext_r, self.episode)
             writer.add_scalar("Max Episode Ext Reward", self.max_episode_reward, self.episode)
             writer.add_scalar("Running Action Probability", self.running_act_prob, iteration)
@@ -76,6 +79,9 @@ class Logger:
             writer.add_scalar("Running Entropy", self.running_training_logs[4], iteration)
             writer.add_scalar("Running Intrinsic Explained variance", self.running_training_logs[5], iteration)
             writer.add_scalar("Running Extrinsic Explained variance", self.running_training_logs[6], iteration)
+            for room in self.visited_rooms:
+                self.rooms[room] += 1
+                writer.add_histogram("Frequency of visiting rooms ", self.rooms[room], room)
 
         self.off()
         if iteration % self.config["interval"] == 0:
@@ -97,7 +103,9 @@ class Logger:
         self.on()
 
     def log_episode(self, *args):
-        self.episode, self.episode_ext_reward, self.visited_rooms = args
+        self.episode, self.episode_ext_reward, visited_rooms = args
+
+        self.visited_rooms = list(visited_rooms)
 
         self.max_episode_reward = max(self.max_episode_reward, self.episode_ext_reward)
 
