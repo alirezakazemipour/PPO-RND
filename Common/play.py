@@ -1,8 +1,7 @@
 from torch import device
 import os
 from Common.utils import *
-import matplotlib.pyplot as plt
-import matplotlib.animation as animation
+import time
 
 
 class Play:

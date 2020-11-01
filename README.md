@@ -29,11 +29,11 @@ RNN Policy| CNN Policy
 > By using the max and skip frames of 4, max frames per episode should be 4500 so 4500 * 4 = 18000 as it has been mentioned in the paper.
 
 Parameters          | Value
-:-----------------------:|:-----------------------:|
+:-----------------------:|:-----------------------:
 total rollouts per environment  | 30000
 max frames per episode  | 4500
 rollout length       	       | 128
-number of evnvironments| 128
+number of environments| 128
 number of epochs	   | 4
 number of mini batches  | 4
 learning rate                      | 1e-4
@@ -99,48 +99,43 @@ pip3 install -r requirements.txt
 ## Usage
 ### How to run
 ```bash
-main.py [-h] [--algo ALGO] [--mem_size MEM_SIZE] [--env_name ENV_NAME]
-               [--interval INTERVAL] [--do_test] [--train_from_scratch]
-               [--do_intro_env]
+usage: main.py [-h] [--n_workers N_WORKERS] [--interval INTERVAL] [--do_test]
+               [--render] [--train_from_scratch]
 
 Variable parameters based on the configuration of the machine or user's choice
 
 optional arguments:
   -h, --help            show this help message and exit
-  --algo ALGO           The algorithm which is used to train the agent.
-  --mem_size MEM_SIZE   The memory size.
-  --env_name ENV_NAME   Name of the environment.
+  --n_workers N_WORKERS
+                        Number of parallel environments.
   --interval INTERVAL   The interval specifies how often different parameters
-                        should be saved and printed, counted by episodes.
-  --do_test            The flag determines whether to train the agent or play
+                        should be saved and printed, counted by iterations.
+  --do_test             The flag determines whether to train the agent or play
                         with it.
-  --train_from_scratch  The flag determines whether to train from scratch or[default=True]
+  --render              The flag determines whether to render each agent or
+                        not.
+  --train_from_scratch  The flag determines whether to train from scratch or
                         continue previous tries.
-  --do_intro_env        Only introduce the environment then close the program.
+
 ```
-- **In order to train the agent with default arguments , execute the following command and use `--do_test` flag, otherwise the agent would be tested** (You may change the memory capacity and the environment based on your desire.):
+- **In order to train the agent with default arguments , execute the following command** (You may change the number of workers and the einterval based on your desire.):
 ```shell
-python3 main.py --algo="rainbow" --mem_size=150000 --env_name="PongNoFrameskip-v4" --interval=100 --do_test
+python3 main.py --n_workers=128 --interval=100
 ```
-- **If you want to keep training your previous run, execute the follwoing:**
+- **If you want to keep training your previous run, execute the following:**
 ```shell
-python3 main.py --algo="rainbow" --mem_size=150000 --env_name="PongNoFrameskip-v4" --interval=100 --do_test --train_from_scratch
+python3 main.py --n_workers=128 --interval=100 --train_from_scratch
+```
+- **If you want  the agent to play, execute the following:**
+```shell
+python3 main.py --do_test
 ```
 ### Hardware requirements
-- **The whole training procedure was done on Google Colab and it took less than 15 hours of training, thus a machine with similar configuration would be sufficient, but if you need a more powerful free online GPU provider, take a look at [paperspace.com](paperspace.com)**.
+- **The whole training procedure with 32 workers can be done on Google Colab and it takes 2 days of training, thus a machine with similar configuration would be sufficient, but if you need a more powerful free online GPU provider and to increase the number of environments to 128 and above, take a look at [paperspace.com](paperspace.com)**.
 ## References
-1. [_Human-level control through deep reinforcement learning_, Mnih et al., 2015](https://www.nature.com/articles/nature14236)
-2. [_Deep Reinforcement Learning with Double Q-learning_, Van Hasselt et al., 2015](https://arxiv.org/abs/1509.06461)
-3. [_Dueling Network Architectures for Deep Reinforcement Learning_, Wang et al., 2015](https://arxiv.org/abs/1511.06581)
-4. [_Prioritized Experience Replay_, Schaul et al., 2015](https://arxiv.org/abs/1511.05952)
-5. [_A Distributional Perspective on Reinforcement Learning_, Bellemere et al., 2017](https://arxiv.org/abs/1707.06887)
-6. [_Noisy Networks for Exploration_, Fortunato et al., 2017](https://arxiv.org/abs/1706.10295)
-7. [_Rainbow: Combining Improvements in Deep Reinforcement Learning_, Hessel et al., 2017](https://arxiv.org/abs/1710.02298)
+1. [_Exploration by Random Network Distillation_, Burda et al., 2018](https://arxiv.org/abs/1810.12894)
+2. [_Proximal Policy Optimization Algorithms_, Schulman et al., 2017](https://arxiv.org/abs/1509.06461)
+
 ## Acknowledgement 
-1. [@Curt-Park](https://github.com/Curt-Park) for [rainbow is all you need](https://github.com/Curt-Park/rainbow-is-all-you-need).
-2. [@higgsfield](https://github.com/higgsfield) for [RL-Adventure](https://github.com/higgsfield/RL-Adventure).
-3. [@wenh123](https://github.com/wenh123) for [NoisyNet-DQN](https://github.com/wenh123/NoisyNet-DQN).
-4. [@qfettes](https://github.com/qfettes) for [DeepRL-Tutorials](https://github.com/qfettes/DeepRL-Tutorials).
-5. [@AdrianHsu](https://github.com/AdrianHsu) for [breakout-Deep-Q-Network](https://github.com/AdrianHsu/breakout-Deep-Q-Network).
-6. [@Kaixhin](https://github.com/Kaixhin) for [Rainbow](https://github.com/Kaixhin/Rainbow).
-7. [@Kchu](https://github.com/Kchu) for [DeepRL_PyTorch](https://github.com/Kchu/DeepRL_PyTorch).
+1. [@jcwleo](https://github.com/jcwleo) for [random-network-distillation-pytorch](https://github.com/jcwleo/random-network-distillation-pytorch).
+2. [@OpenAI ](https://github.com/openai) for [random-network-distillation](https://github.com/openai/random-network-distillation).
