@@ -55,26 +55,3 @@ class Play:
             cv2.destroyAllWindows()
         print(f"Mean episode reward:{sum(mean_ep_reward) / len(mean_ep_reward):0.3f}")
 
-        plt.style.use('ggplot')
-        fig = plt.figure()
-        xdata, ydata = [], []
-        plt.subplot(212)
-        ln, = plt.plot([], [])
-
-        def init():
-            plt.xlim(0, len(int_rewards))
-            plt.ylim(0, max(int_rewards))
-            return ln,
-
-        def update(frame):
-            xdata.append(frame)
-            ydata.append(int_rewards[frame])
-            ln.set_data(xdata, ydata)
-            plt.subplot(211)
-            plt.axis("off")
-            im = plt.imshow(obs[frame], animated=True)
-            return ln, im
-
-        anim = animation.FuncAnimation(fig, update, frames=np.arange(0, len(int_rewards)), init_func=init, interval=2)
-        # anim.save('animation.avi', fps=30)
-        plt.show()
