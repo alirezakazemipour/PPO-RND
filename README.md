@@ -50,35 +50,47 @@ predictor proportion		     | 0.25
 
 ## Structure
 ```shell
+PPO-RND
 ├── Brain
-│   ├── agent.py
+│   ├── brain.py
 │   └── model.py
 ├── Common
 │   ├── config.py
 │   ├── logger.py
 │   ├── play.py
+│   ├── runner.py
 │   └── utils.py
+├── demo
+│   ├── CNN_Policy.gif
+│   └── RNN_Policy.gif
 ├── main.py
-├── Memory
-│   ├── replay_memory.py
-│   └── segment_tree.py
+├── Models
+│   └── 2020-10-20-15-39-45
+│       └── params.pth
+├── Plots
+│   ├── CNN
+│   │   ├── ep_reward.png
+│   │   ├── RIR.png
+│   │   └── visited_rooms.png
+│   └── RNN
+│       ├── ep_reward.png
+│       ├── RIR.png
+│       └── visited_rooms.png
 ├── README.md
-├── requirements.txt
-└── Results
-    ├── 10_last_mean_reward.png
-    ├── rainbow.gif
-    └── running_reward.png
+└── requirements.txt
+
 ```
-1. _Brain_ dir consists the neural network structure and the agent decision making core.
-2. _Common_ consists minor codes that are common for most RL codes and do auxiliary tasks like: logging, wrapping Atari environments and ... .
+1. _Brain_ dir includes the neural networks structures and the agent decision making core.
+2. _Common_ includes minor codes that are common for most RL codes and do auxiliary tasks like: logging, wrapping Atari environments and... .
 3. _main.py_ is the core module of the code that manges all other parts and make the agent interact with the environment.
-4. _Memory_ consists memory of the agent with prioritized experience replay extension.
+4. _Models_ includes a pre-trained weight that you can use to play or keep training by it, also every weight is saved in this directory.
 ## Dependencies
-- gym == 0.17.2
-- numpy == 1.19.1
-- opencv_contrib_python == 3.4.0.12
-- psutil == 5.4.2
-- torch == 1.4.0
+- gym == 0.17.3
+- matplotlib == 3.3.2
+- numpy == 1.19.2
+- opencv_contrib_python == 4.4.0.44
+- torch == 1.6.0
+- tqdm == 4.50.0
 
 ## Installation
 ```shell
@@ -88,7 +100,7 @@ pip3 install -r requirements.txt
 ### How to run
 ```bash
 main.py [-h] [--algo ALGO] [--mem_size MEM_SIZE] [--env_name ENV_NAME]
-               [--interval INTERVAL] [--do_train] [--train_from_scratch]
+               [--interval INTERVAL] [--do_test] [--train_from_scratch]
                [--do_intro_env]
 
 Variable parameters based on the configuration of the machine or user's choice
@@ -100,19 +112,19 @@ optional arguments:
   --env_name ENV_NAME   Name of the environment.
   --interval INTERVAL   The interval specifies how often different parameters
                         should be saved and printed, counted by episodes.
-  --do_train            The flag determines whether to train the agent or play
+  --do_test            The flag determines whether to train the agent or play
                         with it.
   --train_from_scratch  The flag determines whether to train from scratch or[default=True]
                         continue previous tries.
   --do_intro_env        Only introduce the environment then close the program.
 ```
-- **In order to train the agent with default arguments , execute the following command and use `--do_train` flag, otherwise the agent would be tested** (You may change the memory capacity and the environment based on your desire.):
+- **In order to train the agent with default arguments , execute the following command and use `--do_test` flag, otherwise the agent would be tested** (You may change the memory capacity and the environment based on your desire.):
 ```shell
-python3 main.py --algo="rainbow" --mem_size=150000 --env_name="PongNoFrameskip-v4" --interval=100 --do_train
+python3 main.py --algo="rainbow" --mem_size=150000 --env_name="PongNoFrameskip-v4" --interval=100 --do_test
 ```
 - **If you want to keep training your previous run, execute the follwoing:**
 ```shell
-python3 main.py --algo="rainbow" --mem_size=150000 --env_name="PongNoFrameskip-v4" --interval=100 --do_train --train_from_scratch
+python3 main.py --algo="rainbow" --mem_size=150000 --env_name="PongNoFrameskip-v4" --interval=100 --do_test --train_from_scratch
 ```
 ### Hardware requirements
 - **The whole training procedure was done on Google Colab and it took less than 15 hours of training, thus a machine with similar configuration would be sufficient, but if you need a more powerful free online GPU provider, take a look at [paperspace.com](paperspace.com)**.

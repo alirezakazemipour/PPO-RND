@@ -1,6 +1,5 @@
 import time
 import numpy as np
-import psutil
 from torch.utils.tensorboard import SummaryWriter
 import torch
 import os
@@ -29,7 +28,7 @@ class Logger:
         self.last_10_ep_rewards = deque(maxlen=10)
         self.running_last_10_ext_r = 0  # It is not correct but does not matter.
 
-        if self.config["do_train"] and self.config["train_from_scratch"]:
+        if self.config["do_test"] and self.config["train_from_scratch"]:
             self.create_wights_folder()
             self.log_params()
 
