@@ -18,32 +18,34 @@ RNN Policy| CNN Policy
 ![](Plots/RNN/ep_reward.png)      | ![](Plots/CNN/ep_reward.png)
 ![](Plots/RNN/visited_rooms.png)| ![](Plots/CNN/visited_rooms.png)
 
+## Important findings to mention
 
-- the obvious learning phase has started from episode 1200 and the agent has reached to its best performance around episode 1600.  
-
-## Environments tested
-- [x] PongNoFrameskip-v4
-- [ ] BreakoutNoFrameskip-v4
-- [ ] MsPacmanNoFrameskip-v4
+- **As it has been mentioned in the paper**, one of the obstacles that impact seriously the performance of the agent is the **Dancing with Skulls**. During the test time and also by observing the Running Intrinsic Reward during the training time, it got clear that most of the time, the agent is extremely willing to play with skulls, spiders, laser beams and etc. since those behaviors produce considerable intrinsic rewards.
+- `Kernel_size` of [this part](https://github.com/openai/random-network-distillation/blob/f75c0f1efa473d5109d487062fd8ed49ddce6634/policies/cnn_policy_param_matched.py#L104) of the original implementation is wrong; it should be 3 (same as the DQN nature paper) but it is 4.
+- The usage of `RewardForwardFilter` in the original implementation is definitely wrong, as it's been addressed [here](https://github.com/openai/large-scale-curiosity/issues/6#issuecomment-433981760) and solved [here](https://github.com/openai/random-network-distillation/issues/16#issuecomment-488387659)
 
 ## Table of hyper-parameters
->All values (except `final_annealing_beta_steps` that was chosen by trial and error and `initial_mem_size_to_train` that was chosen as a result of lack of computational resources) are based on the Rainbow paper, And instead of _hard updates_, the technique of _soft updates_ of the DDPG paper was applied.
 
-Parameters| Value
+> By using the max and skip frames of 4, max frames per episode should be 4500 so 4500 * 4 = 18000 as it has been mentioned in the paper.
+
+Parameters          | Value
 :-----------------------:|:-----------------------:|
-lr			     | 6.25e-5
-n_step		     | 3
-batch_size            | 32
-gamma	          | 0.99
-tau(based on DDPG paper)| 0.001
-train_period(number of steps between each optimization)|4
-v_min		    | -10
-v_max		   | 10
-n_atoms		    | 51
-adam epsilon       |1.5e-4
-alpha      		    | 0.5
-beta      		    | 0.4
-clip_grad_norm    |10
+total rollouts per environment  | 30000
+max frames per episode  | 4500
+rollout length       	       | 128
+number of evnvironments| 128
+number of epochs	   | 4
+number of mini batches  | 4
+learning rate                      | 1e-4
+extrinsic gamma		    | 0.999
+extrinsic gamma		    | 0.99
+lambda		                  | 0.95
+extrinsic advantage coefficient       | 2
+intrinsic advantage coefficient        | 1
+entropy coefficient     		    | 0.001
+clip range    				       | 0.1
+steps for initial normalization	      | 50
+predictor proportion		     | 0.25
 
 
 ## Structure
