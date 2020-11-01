@@ -1,25 +1,22 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)  
 # Random Network Distillation
-Implementation of the Exploration by Random Network Distillation on Montezuma's Revenge Atari game. After the introduction of Deep Q-Networks in 2015, five other methods were introduced afterwards to improve the performance of initial DQN algorithm. These methods are:
-- Double Q-Learning
-- Dueling architecture
-- Prioritized experience replay
-- Distributional reinforcement learning
-- Noisy Nets
 
-Rainbow combined all these methods also with multi-step learning, and showed the final combination does much better than all other separate methods alone.
+> Visit [RNN_Policy branch](https://github.com/alirezakazemipour/PPO-RND/tree/RNN_Policy) for RNN Policy implementation instead of CNN Policy.
+
+Implementation of the **Exploration by Random Network Distillation** on Montezuma's Revenge Atari game. The algorithm is simply consists of generating intrinsic rewards based on the novelty that agent faces and using these rewards to reduce the sparsity of the game. The main algorithm to train the agent is **Proximal Policy Optimization** that is able to combine extrinsic and intrinsic rewards easily and has fairly less variance during training.
 
 ## Demo
-<p align="center">
-  <img src="Results/rainbow.gif" height=250>
-</p>
+RNN Policy| CNN Policy
+:-----------------------:|:-----------------------:|
+![](demo/RNN_Policy.gif)| ![](demo/CNN_Policy.gif)
 
 ## Results
-> x-axis: episode number.
-
-Running reward| Mean reawrd of the last ten episodes
+RNN Policy| CNN Policy
 :-----------------------:|:-----------------------:|
-![](Results/running_reward.png)| ![](Results/10_last_mean_reward.png)
+![](Plots/RNN/RIR.png)	               | ![](Plots/CNN/RIR.png)	
+![](Plots/RNN/ep_reward.png)      | ![](Plots/CNN/ep_reward.png)
+![](Plots/RNN/visited_rooms.png)| ![](Plots/CNN/visited_rooms.png)
+
 
 - the obvious learning phase has started from episode 1200 and the agent has reached to its best performance around episode 1600.  
 
