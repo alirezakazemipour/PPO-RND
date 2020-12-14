@@ -3,7 +3,7 @@
 
 > Visit [RNN_Policy branch](https://github.com/alirezakazemipour/PPO-RND/tree/RNN_Policy) for RNN Policy implementation instead of CNN Policy.
 
-Implementation of the **Exploration by Random Network Distillation** on Montezuma's Revenge Atari game. The algorithm is simply consists of generating intrinsic rewards based on the novelty that agent faces and using these rewards to reduce the sparsity of the game. The main algorithm to train the agent is **Proximal Policy Optimization** that is able to combine extrinsic and intrinsic rewards easily and has fairly less variance during training.
+Implementation of the **Exploration by Random Network Distillation** on Montezuma's Revenge Atari game. The algorithm simply consists of generating intrinsic rewards based on the novelty that the agent faces and using these rewards to reduce the sparsity of the game. The main algorithm to train the agent is **Proximal Policy Optimization** which is able to combine extrinsic and intrinsic rewards easily and has fairly less variance during training.
 
 ## Demo
 
@@ -80,9 +80,9 @@ PPO-RND
 └── requirements.txt
 
 ```
-1. _Brain_ dir includes the neural networks structures and the agent decision making core.
-2. _Common_ includes minor codes that are common for most RL codes and do auxiliary tasks like: logging, wrapping Atari environments and... .
-3. _main.py_ is the core module of the code that manges all other parts and make the agent interact with the environment.
+1. _Brain_ dir includes the neural networks structures and the agent decision-making core.
+2. _Common_ includes minor codes that are common for most RL codes and do auxiliary tasks like: logging, wrapping Atari environments, and... .
+3. _main.py_ is the core module of the code that manages all other parts and make the agent interact with the environment.
 4. _Models_ includes a pre-trained weight that you can use to play or keep training by it, also every weight is saved in this directory.
 ## Dependencies
 - gym == 0.17.3
@@ -118,7 +118,7 @@ optional arguments:
                         continue previous tries.
 
 ```
-- **In order to train the agent with default arguments , execute the following command** (You may change the number of workers and the einterval based on your desire.):
+- **In order to train the agent with default arguments, execute the following command** (You may change the number of workers and the interval based on your desire.):
 ```shell
 python3 main.py --n_workers=128 --interval=100
 ```
@@ -131,10 +131,10 @@ python3 main.py --n_workers=128 --interval=100 --train_from_scratch
 python3 main.py --do_test
 ```
 ### Hardware requirements
-- **The whole training procedure with 32 workers can be done on Google Colab and it takes 2 days of training, thus a machine with similar configuration would be sufficient, but if you need a more powerful free online GPU provider and to increase the number of environments to 128 and above, take a look at [paperspace.com](paperspace.com)**.
+- **The whole training procedure with 32 workers can be done on Google Colab and it takes 2 days of training, thus a machine with a similar configuration would be sufficient, but if you need a more powerful free online GPU provider and to increase the number of environments to 128 and above, take a look at [paperspace.com](paperspace.com)**.
 ## References
 1. [_Exploration by Random Network Distillation_, Burda et al., 2018](https://arxiv.org/abs/1810.12894)
-2. [_Proximal Policy Optimization Algorithms_, Schulman et al., 2017](https://arxiv.org/abs/1509.06461)
+2. [_Proximal Policy Optimization Algorithms_, Schulman et al., 2017](https://arxiv.org/abs/1707.06347)
 
 ## Acknowledgement 
 1. [@jcwleo](https://github.com/jcwleo) for [random-network-distillation-pytorch](https://github.com/jcwleo/random-network-distillation-pytorch).
