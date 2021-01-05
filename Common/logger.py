@@ -21,7 +21,7 @@ class Logger:
         self.running_int_reward = 0
         self.running_act_prob = 0
         self.running_training_logs = 0
-        self.visited_rooms = set([1])
+        self.x_pos = 0
         self.max_episode_reward = -np.inf
         self.moving_avg_window = 10
         self.moving_weights = np.repeat(1.0, self.moving_avg_window) / self.moving_avg_window
@@ -63,7 +63,7 @@ class Logger:
         with SummaryWriter("Logs/" + self.log_dir) as writer:
             writer.add_scalar("Episode Ext Reward", self.episode_ext_reward, self.episode)
             writer.add_scalar("Running Episode Ext Reward", self.running_ext_reward, self.episode)
-            writer.add_scalar("Visited rooms", len(list(self.visited_rooms)), self.episode)
+            writer.add_scalar("Visited rooms", self.x_pos, self.episode)
             writer.add_scalar("Running last 10 Ext Reward", self.running_last_10_ext_r, self.episode)
             writer.add_scalar("Max Episode Ext Reward", self.max_episode_reward, self.episode)
             writer.add_scalar("Running Action Probability", self.running_act_prob, iteration)
@@ -89,14 +89,14 @@ class Logger:
                           self.episode,
                           self.episode_ext_reward,
                           self.running_ext_reward,
-                          self.visited_rooms,
+                          self.x_pos,
                           self.duration,
                           datetime.datetime.now().strftime("%H:%M:%S"),
                           ))
         self.on()
 
     def log_episode(self, *args):
-        self.episode, self.episode_ext_reward, self.visited_rooms = args
+        self.episode, self.episode_ext_reward, self.x_pos = args
 
         self.max_episode_reward = max(self.max_episode_reward, self.episode_ext_reward)
 
@@ -120,7 +120,7 @@ class Logger:
                     "iteration": iteration,
                     "episode": episode,
                     "running_reward": self.running_ext_reward,
-                    "visited_rooms": self.visited_rooms
+                    "x_pos": self.x_pos
                     },
                    "Models/" + self.log_dir + "/params.pth")
 

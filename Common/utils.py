@@ -1,7 +1,9 @@
 import numpy as np
 import cv2
 import gym
-from copy import deepcopy
+from nes_py.wrappers import JoypadSpace
+import gym_super_mario_bros
+from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 import torch
 from torch._six import inf
 
@@ -15,9 +17,11 @@ def mean_of_list(func):
     return function_wrapper
 
 
-def preprocessing(img):
-    img = cv2.cvtColor(img, cv2.COLOR_RGB2GRAY)
-    img = cv2.resize(img, (84, 84), interpolation=cv2.INTER_AREA)
+def preprocessing(x):
+    img = cv2.cvtColor(x, cv2.COLOR_RGB2GRAY)
+    img = cv2.resize(img, (84, 110),
+                     interpolation=cv2.INTER_AREA)  # 110 instead of 84 to get rid of infos at top of the screen later.
+    img = img[18:102, :]
     return img
 
 
@@ -48,16 +52,15 @@ def explained_variance(ypred, y):
     return np.nan if vary == 0 else 1 - np.var(y - ypred) / vary
 
 
-def make_atari(env_id, max_episode_steps, sticky_action=True, max_and_skip=True):
-    env = gym.make(env_id)
-    env._max_episode_steps = max_episode_steps * 4
-    assert 'NoFrameskip' in env.spec.id
+def make_mario(env_id, max_episode_steps, sticky_action=True, max_and_skip=True):
+    env = gym_super_mario_bros.make(env_id)
+    env = JoypadSpace(env, SIMPLE_MOVEMENT)
+    env.spec.max_episode_steps = max_episode_steps * 4
+    assert 'SuperMarioBros' in env.spec.id
     if sticky_action:
         env = StickyActionEnv(env)
     if max_and_skip:
         env = RepeatActionEnv(env)
-    env = MontezumaVisitedRoomEnv(env, 3)
-    env = AddRandomStateToInfoEnv(env)
 
     return env
 
@@ -102,46 +105,6 @@ class RepeatActionEnv(gym.Wrapper):
 
         state = self.successive_frame.max(axis=0)
         return state, reward, done, info
-
-
-class MontezumaVisitedRoomEnv(gym.Wrapper):
-    def __init__(self, env, room_address):
-        gym.Wrapper.__init__(self, env)
-        self.room_address = room_address
-        self.visited_rooms = set()  # Only stores unique numbers.
-
-    def step(self, action):
-        state, reward, done, info = self.env.step(action)
-        ram = self.unwrapped.ale.getRAM()
-        assert len(ram) == 128
-        self.visited_rooms.add(ram[self.room_address])
-        if done:
-            if "episode" not in info:
-                info["episode"] = {}
-            info["episode"].update(visited_room=deepcopy(self.visited_rooms))
-            self.visited_rooms.clear()
-        return state, reward, done, info
-
-    def reset(self):
-        return self.env.reset()
-
-
-class AddRandomStateToInfoEnv(gym.Wrapper):
-    def __init__(self, env):
-        gym.Wrapper.__init__(self, env)
-        self.rng_at_episode_start = deepcopy(self.unwrapped.np_random)
-
-    def step(self, action):
-        state, reward, done, info = self.env.step(action)
-        if done:
-            if 'episode' not in info:
-                info['episode'] = {}
-            info['episode']['rng_at_episode_start'] = self.rng_at_episode_start
-        return state, reward, done, info
-
-    def reset(self):
-        self.rng_at_episode_start = deepcopy(self.unwrapped.np_random)
-        return self.env.reset()
 
 
 class RunningMeanStd:

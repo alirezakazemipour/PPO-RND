@@ -23,7 +23,7 @@ def get_params():
      https://arxiv.org/abs/1810.12894    
     """
     # region default parameters
-    default_params = {"env_name": "MontezumaRevengeNoFrameskip-v4",
+    default_params = {"env_name": "SuperMarioBros-1-1-v0",
                       "state_shape": (4, 84, 84),
                       "obs_shape": (1, 84, 84),
                       "total_rollouts_per_env": int(30e3),

@@ -5,7 +5,9 @@ from Common.logger import Logger
 from torch.multiprocessing import Process, Pipe
 import numpy as np
 from Brain.brain import Brain
-import gym
+from nes_py.wrappers import JoypadSpace
+import gym_super_mario_bros
+from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 from tqdm import tqdm
 
 
@@ -16,7 +18,8 @@ def run_workers(worker, conn):
 if __name__ == '__main__':
     config = get_params()
 
-    test_env = gym.make(config["env_name"])
+    test_env = gym_super_mario_bros.make(config["env_name"])
+    test_env = JoypadSpace(test_env, SIMPLE_MOVEMENT)
     config.update({"n_actions": test_env.action_space.n})
     test_env.close()
 
@@ -33,15 +36,15 @@ if __name__ == '__main__':
             running_ext_reward = checkpoint["running_reward"]
             init_iteration = checkpoint["iteration"]
             episode = checkpoint["episode"]
-            visited_rooms = checkpoint["visited_rooms"]
+            x_pos = checkpoint["x_pos"]
             logger.running_ext_reward = running_ext_reward
             logger.episode = episode
-            logger.visited_rooms = visited_rooms
+            logger.x_pos = x_pos
         else:
             init_iteration = 0
             running_ext_reward = 0
             episode = 0
-            visited_rooms = set([1])
+            x_pos = 0
 
         workers = [Worker(i, **config) for i in range(config["n_workers"])]
 
@@ -126,9 +129,8 @@ if __name__ == '__main__':
                 episode_ext_reward += total_ext_rewards[0, t]
                 if total_dones[0, t]:
                     episode += 1
-                    if "episode" in infos[0]:
-                        visited_rooms = infos[0]["episode"]["visited_room"]
-                        logger.log_episode(episode, episode_ext_reward, visited_rooms)
+                    x_pos = infos[0]["x_pos"]
+                    logger.log_episode(episode, episode_ext_reward, x_pos)
                     episode_ext_reward = 0
 
             total_next_obs = concatenate(total_next_obs)

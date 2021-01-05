@@ -1,40 +1,75 @@
-from Common.utils import *
+from .utils import *
+import os
 
 
 class Worker:
     def __init__(self, id, **config):
-        self.id = id
-        self.config = config
-        self.env_name = self.config["env_name"]
-        self.max_episode_steps = self.config["max_frames_per_episode"]
-        self.state_shape = self.config["state_shape"]
-        self.env = make_atari(self.env_name, self.max_episode_steps)
-        self._stacked_states = np.zeros(self.state_shape, dtype=np.uint8)
-        self.reset()
+        self._id = id
+        self._config = config
+        self._state_shape = self._config["state_shape"]
+        self.max_episode_steps = self._config["max_frames_per_episode"]
+        self._env = make_mario(self._config["env_name"], self.max_episode_steps)
+        self._stacked_states = np.zeros(self._state_shape, dtype=np.uint8)
+        self._score = 0
+        self._pos = 0
+        self._episode_reward = 0
 
-    def __str__(self):
-        return str(self.id)
+        self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
+        if not os.path.exists("Trajectories"):
+            os.mkdir("Trajectories")
+        self.VideoWriter = cv2.VideoWriter("Trajectories/" + "worker_" + f"{self.id}" + ".avi", self.fourcc, 20.0,
+                                           self._env.observation_space.shape[1::-1])
+        self._frames = []
+        self.reset()
+        print(f"Worker {self.id}: initiated.")
+
+    @property
+    def id(self):
+        return self._id
 
     def render(self):
-        self.env.render()
+        self._env.render()
 
     def reset(self):
-        state = self.env.reset()
+        state = self._env.reset()
         self._stacked_states = stack_states(self._stacked_states, state, True)
+        self._score = 0
+        self._pos = 0
+        self._frames = []
+        self._episode_reward = 0
 
     def step(self, conn):
         t = 1
         while True:
             conn.send(self._stacked_states)
             action = conn.recv()
-            next_state, r, d, info = self.env.step(action)
+            next_state, _, d, info = self._env.step(action)
             t += 1
             if t % self.max_episode_steps == 0:
                 d = True
-            if self.config["render"]:
-                self.render()
+
+            if info["flag_get"]:
+                r = 1
+            else:
+                r = 0
+
+            if info["flag_get"]:
+                print("\n---------------------------------------")
+                print("🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩\n"
+                      f"Worker {self._id}: got the flag!!!!!!!\n"
+                      f"Episode Reward: {self._episode_reward:.1f}\n"
+                      f"Position: {self._pos}")
+                print("---------------------------------------")
+
+                for frame in self._frames:
+                    self.VideoWriter.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+
+            self._pos = info["x_pos"]
+            self._episode_reward += r
+
             self._stacked_states = stack_states(self._stacked_states, next_state, False)
-            conn.send((self._stacked_states, np.sign(r), d, info))
+            self._frames.append(next_state)
+
+            conn.send((self._stacked_states, r, d, info))
             if d:
                 self.reset()
-                t = 1
