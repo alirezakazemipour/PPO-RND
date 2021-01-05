@@ -63,7 +63,7 @@ class Logger:
         with SummaryWriter("Logs/" + self.log_dir) as writer:
             writer.add_scalar("Episode Ext Reward", self.episode_ext_reward, self.episode)
             writer.add_scalar("Running Episode Ext Reward", self.running_ext_reward, self.episode)
-            writer.add_scalar("Visited rooms", self.x_pos, self.episode)
+            writer.add_scalar("Position", self.x_pos, self.episode)
             writer.add_scalar("Running last 10 Ext Reward", self.running_last_10_ext_r, self.episode)
             writer.add_scalar("Max Episode Ext Reward", self.max_episode_reward, self.episode)
             writer.add_scalar("Running Action Probability", self.running_act_prob, iteration)
