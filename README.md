@@ -38,7 +38,7 @@ number of epochs	   | 4
 number of mini batches  | 4
 learning rate                      | 1e-4
 extrinsic gamma		    | 0.999
-extrinsic gamma		    | 0.99
+intrinsic gamma		    | 0.99
 lambda		                  | 0.95
 extrinsic advantage coefficient       | 2
 intrinsic advantage coefficient        | 1
