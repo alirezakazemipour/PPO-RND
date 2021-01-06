@@ -99,7 +99,7 @@ pip3 install -r requirements.txt
 ## Usage
 ### How to run
 ```bash
-usage: main.py [-h] [--n_workers N_WORKERS] [--interval INTERVAL] [--do_test]
+usage: main.py [-h] [--n_workers N_WORKERS] [--interval INTERVAL] [--do_train]
                [--render] [--train_from_scratch]
 
 Variable parameters based on the configuration of the machine or user's choice
@@ -110,7 +110,7 @@ optional arguments:
                         Number of parallel environments.
   --interval INTERVAL   The interval specifies how often different parameters
                         should be saved and printed, counted by iterations.
-  --do_test             The flag determines whether to train the agent or play
+  --do_train             The flag determines whether to train the agent or play
                         with it.
   --render              The flag determines whether to render each agent or
                         not.
@@ -128,7 +128,7 @@ python3 main.py --n_workers=128 --interval=100 --train_from_scratch
 ```
 - **If you want  the agent to play, execute the following:**
 ```shell
-python3 main.py --do_test
+python3 main.py --do_train
 ```
 ### Hardware requirements
 - **The whole training procedure with 32 workers can be done on Google Colab and it takes 2 days of training, thus a machine with a similar configuration would be sufficient, but if you need a more powerful free online GPU provider and to increase the number of environments to 128 and above, take a look at [paperspace.com](paperspace.com)**.

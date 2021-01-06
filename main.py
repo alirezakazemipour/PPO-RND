@@ -1,3 +1,4 @@
+from comet_ml import Experiment
 from Common.runner import Worker
 from Common.play import Play
 from Common.config import get_params
@@ -27,9 +28,16 @@ if __name__ == '__main__':
     config.update({"predictor_proportion": 32 / config["n_workers"]})
 
     brain = Brain(**config)
-    logger = Logger(brain, **config)
 
-    if config["do_test"]:
+    if config["do_train"]:
+
+        experiment = Experiment(
+            api_key="mpH0nJorSD143jz45qMvMYKZI",
+            project_name="rnd",
+            workspace="alirezakazemipour")
+
+        logger = Logger(brain, experiment=experiment, **config)
+
         if not config["train_from_scratch"]:
             checkpoint = logger.load_weights()
             brain.set_from_checkpoint(checkpoint)
@@ -157,6 +165,7 @@ if __name__ == '__main__':
                                  total_action_probs[0].max(-1).mean())
 
     else:
+        logger = Logger(brain, experiment=None, **config)
         checkpoint = logger.load_weights()
         play = Play(config["env_name"], brain, checkpoint)
         play.evaluate()

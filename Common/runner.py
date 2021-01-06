@@ -73,3 +73,4 @@ class Worker:
             conn.send((self._stacked_states, r, d, info))
             if d:
                 self.reset()
+                t = 1
