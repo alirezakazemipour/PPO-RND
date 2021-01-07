@@ -20,7 +20,7 @@ class Logger:
         self.running_ext_reward = 0
         self.running_int_reward = 0
         self.running_act_prob = 0
-        self.running_training_logs = 0
+        self.running_training_logs = dict()
         self.x_pos = 0
         self.max_episode_reward = -np.inf
         self.moving_avg_window = 10
@@ -32,7 +32,7 @@ class Logger:
             self.create_wights_folder()
             self.experiment.log_parameters(self.config)
 
-        self.exp_avg = lambda x, y: 0.99 * x + 0.01 * y if (y != 0).all() else y
+        self.exp_avg = lambda x, y: 0.99 * x + 0.01 * y if y != 0 else y
 
     def create_wights_folder(self):
         if not os.path.exists("Models"):
@@ -50,7 +50,12 @@ class Logger:
 
         self.running_act_prob = self.exp_avg(self.running_act_prob, action_prob)
         self.running_int_reward = self.exp_avg(self.running_int_reward, int_reward)
-        self.running_training_logs = self.exp_avg(self.running_training_logs, np.array(training_logs))
+        if iteration == 1:
+            for k, v in training_logs.items():
+                self.running_training_logs.update({k: v})
+        else:
+            for k, v in training_logs.items():
+                self.running_training_logs[k] = self.exp_avg(self.running_training_logs[k], v)
 
         if iteration % (self.config["interval"] // 3) == 0:
             self.save_params(self.episode, iteration)
@@ -62,13 +67,16 @@ class Logger:
         self.experiment.log_metric("Max Episode Ext Reward", self.max_episode_reward, self.episode)
         self.experiment.log_metric("Running Action Probability", self.running_act_prob, iteration)
         self.experiment.log_metric("Running Intrinsic Reward", self.running_int_reward, iteration)
-        self.experiment.log_metric("Running PG Loss", self.running_training_logs[0], iteration)
-        self.experiment.log_metric("Running Ext Value Loss", self.running_training_logs[1], iteration)
-        self.experiment.log_metric("Running Int Value Loss", self.running_training_logs[2], iteration)
-        self.experiment.log_metric("Running RND Loss", self.running_training_logs[3], iteration)
-        self.experiment.log_metric("Running Entropy", self.running_training_logs[4], iteration)
-        self.experiment.log_metric("Running Intrinsic Explained variance", self.running_training_logs[5], iteration)
-        self.experiment.log_metric("Running Extrinsic Explained variance", self.running_training_logs[6], iteration)
+        self.experiment.log_metric("Running PG Loss", self.running_training_logs["pg_loss"], iteration)
+        self.experiment.log_metric("Running Ext Value Loss", self.running_training_logs["ext_value_loss"], iteration)
+        self.experiment.log_metric("Running Int Value Loss", self.running_training_logs["int_value_loss"], iteration)
+        self.experiment.log_metric("Running RND Loss", self.running_training_logs["rnd_loss"], iteration)
+        self.experiment.log_metric("Running Entropy", self.running_training_logs["entropy"], iteration)
+        self.experiment.log_metric("Running Intrinsic Explained variance",
+                                   self.running_training_logs["int_ep"], iteration)
+        self.experiment.log_metric("Running Extrinsic Explained variance",
+                                   self.running_training_logs["ext_ep"], iteration)
+        self.experiment.log_metric("Running grad norm", self.running_training_logs["grad_norm"], iteration)
 
         self.off()
         if iteration % self.config["interval"] == 0:
@@ -103,7 +111,7 @@ class Logger:
             self.running_last_10_ext_r = np.convolve(self.last_10_ep_rewards, self.moving_weights, 'valid')
 
     def save_params(self, episode, iteration):
-        torch.save({"current_policy_state_dict": self.brain.current_policy.state_dict(),
+        torch.save({"policy_state_dict": self.brain.policy.state_dict(),
                     "predictor_model_state_dict": self.brain.predictor_model.state_dict(),
                     "target_model_state_dict": self.brain.target_model.state_dict(),
                     "optimizer_state_dict": self.brain.optimizer.state_dict(),
@@ -116,6 +124,7 @@ class Logger:
                     "iteration": iteration,
                     "episode": episode,
                     "running_reward": self.running_ext_reward,
+                    "running_logs": self.running_training_logs,
                     "x_pos": self.x_pos
                     },
                    "Models/" + self.log_dir + "/params.pth")

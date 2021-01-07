@@ -6,15 +6,6 @@ import gym_super_mario_bros
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 
 
-def mean_of_list(func):
-    def function_wrapper(*args, **kwargs):
-        lists = func(*args, **kwargs)
-        return [sum(list) / len(list) for list in lists[:-4]] + [explained_variance(lists[-4], lists[-3])] + \
-               [explained_variance(lists[-2], lists[-1])]
-
-    return function_wrapper
-
-
 def preprocessing(x):
     img = cv2.cvtColor(x, cv2.COLOR_RGB2GRAY)
     img = cv2.resize(img, (84, 110),

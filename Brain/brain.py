@@ -1,10 +1,10 @@
-from Brain.model import PolicyModel, PredictorModel, TargetModel
+from .model import PolicyModel, PredictorModel, TargetModel
 import torch
 from torch import from_numpy
 import numpy as np
 from numpy import concatenate  # Make coder faster.
 from torch.optim.adam import Adam
-from Common.utils import mean_of_list, RunningMeanStd
+from Common import RunningMeanStd, explained_variance
 from torch.optim.lr_scheduler import LambdaLR
 
 torch.backends.cudnn.benchmark = True
@@ -45,7 +45,15 @@ class Brain:
         return action.cpu().numpy(), int_value.cpu().numpy().squeeze(), \
                ext_value.cpu().numpy().squeeze(), log_prob.cpu().numpy(), action_prob.cpu().numpy()
 
-    def choose_mini_batch(self, states, actions, int_returns, ext_returns, advs, log_probs, next_states):
+    def choose_mini_batch(self, states,
+                          actions,
+                          int_returns,
+                          ext_returns,
+                          advs,
+                          log_probs,
+                          next_states,
+                          int_values,
+                          ext_values):
         states = torch.ByteTensor(states).to(self.device)
         next_states = torch.Tensor(next_states).to(self.device)
         actions = torch.ByteTensor(actions).to(self.device)
@@ -53,14 +61,15 @@ class Brain:
         int_returns = torch.Tensor(int_returns).to(self.device)
         ext_returns = torch.Tensor(ext_returns).to(self.device)
         log_probs = torch.Tensor(log_probs).to(self.device)
+        int_values = torch.Tensor(int_values).to(self.device)
+        ext_values = torch.Tensor(ext_values).to(self.device)
 
         indices = np.random.randint(0, len(states), (self.config["n_mini_batch"], self.mini_batch_size))
 
         for idx in indices:
             yield states[idx], actions[idx], int_returns[idx], ext_returns[idx], advs[idx], \
-                  log_probs[idx], next_states[idx]
+                  log_probs[idx], next_states[idx], int_values[idx], ext_values[idx]
 
-    @mean_of_list
     def train(self, states, actions, int_rewards,
               ext_rewards, dones, int_values, ext_values,
               log_probs, next_int_values, next_ext_values, total_next_obs):
@@ -81,46 +90,71 @@ class Brain:
         self.state_rms.update(total_next_obs)
         total_next_obs = ((total_next_obs - self.state_rms.mean) / (self.state_rms.var ** 0.5)).clip(-5, 5)
 
-        pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies = [], [], [], [], []
+        pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies, grad_norms = [], [], [], [], [], []
         for epoch in range(self.config["n_epochs"]):
-            for state, action, int_return, ext_return, adv, old_log_prob, next_state in \
+            for state, action, int_return, ext_return, adv, old_log_prob, next_state, old_int_value, old_ext_value in \
                     self.choose_mini_batch(states=states,
                                            actions=actions,
                                            int_returns=int_rets,
                                            ext_returns=ext_rets,
                                            advs=advs,
                                            log_probs=log_probs,
-                                           next_states=total_next_obs):
-                dist, int_value, ext_value, _ = self.policy(state)
+                                           next_states=total_next_obs,
+                                           int_values=int_values,
+                                           ext_values=ext_values):
+                dist, int_value, ext_value, *_ = self.policy(state)
                 entropy = dist.entropy().mean()
                 new_log_prob = dist.log_prob(action)
                 ratio = (new_log_prob - old_log_prob).exp()
                 pg_loss = self.compute_pg_loss(ratio, adv)
 
-                int_value_loss = self.mse_loss(int_value.squeeze(-1), int_return)
-                ext_value_loss = self.mse_loss(ext_value.squeeze(-1), ext_return)
+                clipped_ext_value = old_ext_value + torch.clamp(ext_value.squeeze() - old_ext_value,
+                                                                -self.epsilon, self.epsilon)
+                clipped_ext_v_loss = (clipped_ext_value - ext_return).pow(2)
+                unclipped_ext_v_loss = (ext_value.squeeze() - ext_return).pow(2)
+                ext_value_loss = 0.5 * torch.max(clipped_ext_v_loss, unclipped_ext_v_loss).mean()
+
+                clipped_int_value = old_int_value + torch.clamp(int_value.squeeze() - old_int_value,
+                                                                -self.epsilon, self.epsilon)
+                clipped_int_v_loss = (clipped_int_value - int_return).pow(2)
+                unclipped_int_v_loss = (int_value.squeeze() - int_return).pow(2)
+                int_value_loss = 0.5 * torch.max(clipped_int_v_loss, unclipped_int_v_loss).mean()
+
+                # int_value_loss = self.mse_loss(int_value.squeeze(-1), int_return)
+                # ext_value_loss = self.mse_loss(ext_value.squeeze(-1), ext_return)
 
                 critic_loss = 0.5 * (int_value_loss + ext_value_loss)
 
                 rnd_loss = self.calculate_rnd_loss(next_state)
 
                 total_loss = critic_loss + pg_loss - self.config["ent_coeff"] * entropy + rnd_loss
-                self.optimize(total_loss)
+                grad_norm = self.optimize(total_loss)
 
                 pg_losses.append(pg_loss.item())
                 ext_v_losses.append(ext_value_loss.item())
                 int_v_losses.append(int_value_loss.item())
                 rnd_losses.append(rnd_loss.item())
                 entropies.append(entropy.item())
+                grad_norms.append(grad_norm.item())
                 # https://github.com/openai/random-network-distillation/blob/f75c0f1efa473d5109d487062fd8ed49ddce6634/ppo_agent.py#L187
 
-        return pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies, int_values, int_rets, ext_values, ext_rets
+        iteration_log = dict(pg_loss=sum(pg_losses) / len(pg_losses),
+                             ext_value_loss=sum(ext_v_losses) / len(ext_v_losses),
+                             int_value_loss=sum(int_v_losses) / len(int_v_losses),
+                             rnd_loss=sum(rnd_losses) / len(rnd_losses),
+                             entropy=sum(entropies) / len(entropies),
+                             grad_norm=sum(grad_norms) / len(grad_norms),
+                             int_ep=explained_variance(int_values, int_rets),
+                             ext_ep=explained_variance(ext_values, ext_rets)
+                             )
+        return iteration_log
 
     def optimize(self, loss):
         self.optimizer.zero_grad()
         loss.backward()
-        torch.nn.utils.clip_grad_norm_(self.total_trainable_params, self.config["max_grad_norm"])
+        grad_norm = torch.nn.utils.clip_grad_norm_(self.total_trainable_params, self.config["max_grad_norm"])
         self.optimizer.step()
+        return grad_norm
 
     def schedule_lr(self):
         self.scheduler.step()
@@ -189,7 +223,7 @@ class Brain:
         return loss
 
     def set_from_checkpoint(self, checkpoint):
-        self.policy.load_state_dict(checkpoint["current_policy_state_dict"])
+        self.policy.load_state_dict(checkpoint["policy_state_dict"])
         self.predictor_model.load_state_dict(checkpoint["predictor_model_state_dict"])
         self.target_model.load_state_dict(checkpoint["target_model_state_dict"])
         for param in self.target_model.parameters():

@@ -2,7 +2,7 @@ from comet_ml import Experiment
 from Common import Worker, Play, get_params, Logger
 from torch.multiprocessing import Process, Pipe
 import numpy as np
-from Brain.brain import Brain
+from Brain import Brain
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
 from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
@@ -45,6 +45,7 @@ if __name__ == '__main__':
             logger.running_ext_reward = running_ext_reward
             logger.episode = episode
             logger.x_pos = x_pos
+            logger.running_training_logs = checkpoint["running_logs"]
         else:
             init_iteration = 0
             running_ext_reward = 0
