@@ -3,9 +3,7 @@ import cv2
 import gym
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
-import torch
-from torch._six import inf
+from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 
 
 def mean_of_list(func):
@@ -54,7 +52,7 @@ def explained_variance(ypred, y):
 
 def make_mario(env_id, max_episode_steps, sticky_action=True, max_and_skip=True):
     env = gym_super_mario_bros.make(env_id)
-    env = JoypadSpace(env, SIMPLE_MOVEMENT)
+    env = JoypadSpace(env, COMPLEX_MOVEMENT)
     env.spec.max_episode_steps = max_episode_steps * 4
     assert 'SuperMarioBros' in env.spec.id
     if sticky_action:
@@ -138,36 +136,3 @@ def update_mean_var_count_from_moments(mean, var, count, batch_mean, batch_var, 
     new_count = tot_count
 
     return new_mean, new_var, new_count
-
-
-class RewardForwardFilter(object):
-    def __init__(self, gamma):
-        self.rewems = None
-        self.gamma = gamma
-
-    def update(self, rews):
-        if self.rewems is None:
-            self.rewems = rews
-        else:
-            self.rewems = self.rewems * self.gamma + rews
-        return self.rewems
-
-
-def clip_grad_norm_(parameters, norm_type: float = 2.0):
-    """
-    This is the official clip_grad_norm implemented in pytorch but the max_norm part has been removed.
-    https://github.com/pytorch/pytorch/blob/52f2db752d2b29267da356a06ca91e10cd732dbc/torch/nn/utils/clip_grad.py#L9
-    """
-    if isinstance(parameters, torch.Tensor):
-        parameters = [parameters]
-    parameters = [p for p in parameters if p.grad is not None]
-    norm_type = float(norm_type)
-    if len(parameters) == 0:
-        return torch.tensor(0.)
-    device = parameters[0].grad.device
-    if norm_type == inf:
-        total_norm = max(p.grad.detach().abs().max().to(device) for p in parameters)
-    else:
-        total_norm = torch.norm(torch.stack([torch.norm(p.grad.detach(), norm_type).to(device) for p in parameters]),
-                                norm_type)
-    return total_norm

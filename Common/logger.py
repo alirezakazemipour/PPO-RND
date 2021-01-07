@@ -76,7 +76,7 @@ class Logger:
                   "EP:{}| "
                   "EP_Reward:{}| "
                   "EP_Running_Reward:{:.3f}| "
-                  "Visited_rooms:{}| "
+                  "Position:{:.1f}| "
                   "Iter_Duration:{:.3f}| "
                   "Time:{} "
                   .format(iteration,
@@ -85,8 +85,9 @@ class Logger:
                           self.running_ext_reward,
                           self.x_pos,
                           self.duration,
-                          datetime.datetime.now().strftime("%H:%M:%S"),
-                          ))
+                          datetime.datetime.now().strftime("%H:%M:%S")
+                          )
+                  )
         self.on()
 
     def log_episode(self, *args):

@@ -23,7 +23,7 @@ def get_params():
      https://arxiv.org/abs/1810.12894    
     """
     # region default parameters
-    default_params = {"env_name": "SuperMarioBros-1-1-v0",
+    default_params = {"env_name": "SuperMarioBros-v0",
                       "state_shape": (4, 84, 84),
                       "obs_shape": (1, 84, 84),
                       "total_rollouts_per_env": int(30e3),
@@ -40,6 +40,7 @@ def get_params():
                       "ent_coeff": 0.001,
                       "clip_range": 0.1,
                       "pre_normalization_steps": 50,
+                      "max_grad_norm": 0.5,
                       }
 
     # endregion

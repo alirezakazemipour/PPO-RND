@@ -4,7 +4,8 @@ from torch import from_numpy
 import numpy as np
 from numpy import concatenate  # Make coder faster.
 from torch.optim.adam import Adam
-from Common.utils import mean_of_list, RunningMeanStd, clip_grad_norm_
+from Common.utils import mean_of_list, RunningMeanStd
+from torch.optim.lr_scheduler import LambdaLR
 
 torch.backends.cudnn.benchmark = True
 
@@ -15,15 +16,18 @@ class Brain:
         self.mini_batch_size = self.config["batch_size"]
         self.device = torch.device("cuda") if torch.cuda.is_available() else torch.device("cpu")
         self.obs_shape = self.config["obs_shape"]
+        self.epsilon = self.config["clip_range"]
 
-        self.current_policy = PolicyModel(self.config["state_shape"], self.config["n_actions"]).to(self.device)
+        self.policy = PolicyModel(self.config["state_shape"], self.config["n_actions"]).to(self.device)
         self.predictor_model = PredictorModel(self.obs_shape).to(self.device)
         self.target_model = TargetModel(self.obs_shape).to(self.device)
         for param in self.target_model.parameters():
             param.requires_grad = False
 
-        self.total_trainable_params = list(self.current_policy.parameters()) + list(self.predictor_model.parameters())
+        self.total_trainable_params = list(self.policy.parameters()) + list(self.predictor_model.parameters())
         self.optimizer = Adam(self.total_trainable_params, lr=self.config["lr"])
+        self.schedule_fn = lambda step: max(1.0 - float(step / self.config["total_rollouts_per_env"]), 0)
+        self.scheduler = LambdaLR(self.optimizer, lr_lambda=self.schedule_fn)
 
         self.state_rms = RunningMeanStd(shape=self.obs_shape)
         self.int_reward_rms = RunningMeanStd(shape=(1,))
@@ -35,7 +39,7 @@ class Brain:
             state = np.expand_dims(state, 0)
         state = from_numpy(state).to(self.device)
         with torch.no_grad():
-            dist, int_value, ext_value, action_prob = self.current_policy(state)
+            dist, int_value, ext_value, action_prob = self.policy(state)
             action = dist.sample()
             log_prob = dist.log_prob(action)
         return action.cpu().numpy(), int_value.cpu().numpy().squeeze(), \
@@ -87,7 +91,7 @@ class Brain:
                                            advs=advs,
                                            log_probs=log_probs,
                                            next_states=total_next_obs):
-                dist, int_value, ext_value, _ = self.current_policy(state)
+                dist, int_value, ext_value, _ = self.policy(state)
                 entropy = dist.entropy().mean()
                 new_log_prob = dist.log_prob(action)
                 ratio = (new_log_prob - old_log_prob).exp()
@@ -115,9 +119,14 @@ class Brain:
     def optimize(self, loss):
         self.optimizer.zero_grad()
         loss.backward()
-        clip_grad_norm_(self.total_trainable_params)
-        # torch.nn.utils.clip_grad_norm_(self.total_trainable_params, 0.5)
+        torch.nn.utils.clip_grad_norm_(self.total_trainable_params, self.config["max_grad_norm"])
         self.optimizer.step()
+
+    def schedule_lr(self):
+        self.scheduler.step()
+
+    def schedule_clip_range(self, iter):
+        self.epsilon = max(1.0 - float(iter / self.config["total_rollouts_per_env"]), 0) * self.config["clip_range"]
 
     def get_gae(self, rewards, values, next_values, dones, gamma):
         lam = self.config["lambda"]  # Make code faster.
@@ -165,7 +174,7 @@ class Brain:
 
     def compute_pg_loss(self, ratio, adv):
         new_r = ratio * adv
-        clamped_r = torch.clamp(ratio, 1 - self.config["clip_range"], 1 + self.config["clip_range"]) * adv
+        clamped_r = torch.clamp(ratio, 1 - self.epsilon, 1 + self.epsilon) * adv
         loss = torch.min(new_r, clamped_r)
         loss = -loss.mean()
         return loss
@@ -180,7 +189,7 @@ class Brain:
         return loss
 
     def set_from_checkpoint(self, checkpoint):
-        self.current_policy.load_state_dict(checkpoint["current_policy_state_dict"])
+        self.policy.load_state_dict(checkpoint["current_policy_state_dict"])
         self.predictor_model.load_state_dict(checkpoint["predictor_model_state_dict"])
         self.target_model.load_state_dict(checkpoint["target_model_state_dict"])
         for param in self.target_model.parameters():
@@ -194,4 +203,4 @@ class Brain:
         self.int_reward_rms.count = checkpoint["int_reward_rms_count"]
 
     def set_to_eval_mode(self):
-        self.current_policy.eval()
+        self.policy.eval()

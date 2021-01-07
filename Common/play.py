@@ -6,7 +6,7 @@ import time
 
 class Play:
     def __init__(self, env, agent, checkpoint, max_episode=1):
-        self.env = make_atari(env, 4500, sticky_action=False)
+        self.env = make_mario(env, 4500, sticky_action=False)
         self.max_episode = max_episode
         self.agent = agent
         self.agent.set_from_checkpoint(checkpoint)
@@ -31,7 +31,7 @@ class Play:
             done = False
             while not done:
                 action, *_ = self.agent.get_actions_and_values(stacked_states)
-                s_, r, done, info = self.env.step(action)
+                s_, r, done, info = self.env.step(action[0])
                 episode_reward += r
                 clipped_ep_reward += np.sign(r)
 
@@ -46,7 +46,7 @@ class Play:
                 time.sleep(0.01)
             print(f"episode reward:{episode_reward}| "
                   f"clipped episode reward:{clipped_ep_reward}| "
-                  f"Visited rooms:{info['episode']['visited_room']}")
+                  f"pos:{info['x_pos']}")
             mean_ep_reward.append(episode_reward)
             self.env.close()
             self.VideoWriter.release()

@@ -1,14 +1,11 @@
 from comet_ml import Experiment
-from Common.runner import Worker
-from Common.play import Play
-from Common.config import get_params
-from Common.logger import Logger
+from Common import Worker, Play, get_params, Logger
 from torch.multiprocessing import Process, Pipe
 import numpy as np
 from Brain.brain import Brain
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
-from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
+from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 from tqdm import tqdm
 
 
@@ -20,7 +17,7 @@ if __name__ == '__main__':
     config = get_params()
 
     test_env = gym_super_mario_bros.make(config["env_name"])
-    test_env = JoypadSpace(test_env, SIMPLE_MOVEMENT)
+    test_env = JoypadSpace(test_env, COMPLEX_MOVEMENT)
     config.update({"n_actions": test_env.action_space.n})
     test_env.close()
 
@@ -78,8 +75,8 @@ if __name__ == '__main__':
                     parent.send(a)
 
                 for parent in parents:
-                    s_, *_ = parent.recv()
-                    states.append(s_[-1, ...].reshape(1, 84, 84))
+                    feedback = parent.recv()
+                    states.append(feedback["next_state"][-1, ...].reshape(1, 84, 84))
 
                 if len(states) % (config["n_workers"] * config["rollout_length"]) == 0:
                     brain.state_rms.update(np.stack(states))
@@ -110,6 +107,7 @@ if __name__ == '__main__':
             total_int_rewards = init_int_rewards
             total_ext_rewards = init_ext_rewards
             total_dones = init_dones
+            total_episode_dones = init_dones
             total_int_values = init_int_values
             total_ext_values = init_ext_values
             total_log_probs = init_log_probs
@@ -127,15 +125,16 @@ if __name__ == '__main__':
 
                 infos = []
                 for worker_id, parent in enumerate(parents):
-                    s_, r, d, info = parent.recv()
-                    infos.append(info)
-                    total_ext_rewards[worker_id, t] = r
-                    total_dones[worker_id, t] = d
-                    next_states[worker_id] = s_
-                    total_next_obs[worker_id, t] = s_[-1, ...]
+                    feedback = parent.recv()
+                    infos.append(feedback["info"])
+                    total_ext_rewards[worker_id, t] = feedback["reward"]
+                    total_dones[worker_id, t] = feedback["real_done"]
+                    total_episode_dones[worker_id, t] = feedback["game_done"]
+                    next_states[worker_id] = feedback["next_state"]
+                    total_next_obs[worker_id, t] = feedback["next_state"][-1, ...]
 
                 episode_ext_reward += total_ext_rewards[0, t]
-                if total_dones[0, t]:
+                if total_episode_dones[0, t]:
                     episode += 1
                     x_pos = infos[0]["x_pos"]
                     logger.log_episode(episode, episode_ext_reward, x_pos)
@@ -158,6 +157,8 @@ if __name__ == '__main__':
                                         next_int_values=next_int_values,
                                         next_ext_values=next_ext_values,
                                         total_next_obs=total_next_obs)
+            brain.schedule_lr()
+            brain.schedule_clip_range(iteration)
 
             logger.log_iteration(iteration,
                                  training_logs,
