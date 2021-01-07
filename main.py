@@ -36,21 +36,11 @@ if __name__ == '__main__':
         logger = Logger(brain, experiment=experiment, **config)
 
         if not config["train_from_scratch"]:
-            checkpoint = logger.load_weights()
-            brain.set_from_checkpoint(checkpoint)
-            running_ext_reward = checkpoint["running_reward"]
-            init_iteration = checkpoint["iteration"]
-            episode = checkpoint["episode"]
-            x_pos = checkpoint["x_pos"]
-            logger.running_ext_reward = running_ext_reward
-            logger.episode = episode
-            logger.x_pos = x_pos
-            logger.running_training_logs = checkpoint["running_logs"]
+            init_iteration, episode = logger.load_weights()
+
         else:
             init_iteration = 0
-            running_ext_reward = 0
             episode = 0
-            x_pos = 0
 
         workers = [Worker(i, **config) for i in range(config["n_workers"])]
 
