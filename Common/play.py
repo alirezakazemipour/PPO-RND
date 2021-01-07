@@ -1,17 +1,14 @@
-from torch import device
 import os
-from Common.utils import *
+from .utils import *
 import time
 
 
 class Play:
-    def __init__(self, env, agent, checkpoint, max_episode=1):
+    def __init__(self, env, agent, max_episode=1):
         self.env = make_mario(env, 4500, sticky_action=False)
         self.max_episode = max_episode
         self.agent = agent
-        self.agent.set_from_checkpoint(checkpoint)
         self.agent.set_to_eval_mode()
-        self.device = device("cuda" if torch.cuda.is_available() else "cpu")
         self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
         if not os.path.exists("Results"):
             os.mkdir("Results")

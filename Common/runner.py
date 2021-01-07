@@ -64,6 +64,18 @@ class Worker:
             self._pos = info["x_pos"]
             self._episode_reward += r
 
+            self._stacked_states = stack_states(self._stacked_states, next_state, False)
+            self._frames.append(next_state)
+
+            conn.send(dict(next_state=self._stacked_states,
+                           reward=r,
+                           real_done=d or self._life_done,
+                           game_done=d,
+                           info=info
+                           )
+                      )
+            self._life_done = False
+
             if info["flag_get"]:
                 print("\n---------------------------------------")
                 print("🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩\n"
@@ -76,18 +88,6 @@ class Worker:
 
                 for frame in self._frames:
                     self.VideoWriter.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-
-            self._stacked_states = stack_states(self._stacked_states, next_state, False)
-            self._frames.append(next_state)
-
-            conn.send(dict(next_state=self._stacked_states,
-                           reward=r,
-                           real_done=d or self._life_done,
-                           game_done=d,
-                           info=info
-                           )
-                      )
-            self._life_done = False
 
             if d:
                 self.reset()

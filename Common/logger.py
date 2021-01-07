@@ -139,7 +139,7 @@ class Logger:
         self.brain.set_from_checkpoint(checkpoint)
         self.log_dir = model_dir[-1].split(os.sep)[-1]
         self.running_ext_reward = checkpoint["running_ext_reward"]
-        self.x_pos = ["x_pos"]
+        self.x_pos = checkpoint["x_pos"]
         self.episode = checkpoint["episode"]
         self.running_training_logs = checkpoint["running_training_logs"]
         self.running_act_prob = checkpoint["running_act_prob"]

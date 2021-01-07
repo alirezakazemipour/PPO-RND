@@ -8,9 +8,9 @@ from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
 
 def preprocessing(x):
     img = cv2.cvtColor(x, cv2.COLOR_RGB2GRAY)
-    img = cv2.resize(img, (84, 110),
-                     interpolation=cv2.INTER_AREA)  # 110 instead of 84 to get rid of infos at top of the screen later.
-    img = img[18:102, :]
+    img = cv2.resize(img, (84, 84),
+                     interpolation=cv2.INTER_AREA)  
+    # img = img[18:102, :]
     return img
 
 
