@@ -57,10 +57,6 @@ class Worker:
             else:
                 r = 0
 
-            if info["life"] < self._lives:
-                self._life_done = True
-                self._lives = info["life"]
-
             self._pos = info["x_pos"]
             self._episode_reward += r
 
@@ -69,8 +65,7 @@ class Worker:
 
             conn.send(dict(next_state=self._stacked_states,
                            reward=r,
-                           real_done=d or self._life_done,
-                           game_done=d,
+                           done=d,
                            info=info
                            )
                       )
@@ -88,6 +83,7 @@ class Worker:
 
                 for frame in self._frames:
                     self.VideoWriter.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
+                self.VideoWriter.release()
 
             if d:
                 self.reset()

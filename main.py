@@ -98,7 +98,6 @@ if __name__ == '__main__':
             total_int_rewards = init_int_rewards
             total_ext_rewards = init_ext_rewards
             total_dones = init_dones
-            total_episode_dones = init_dones
             total_int_values = init_int_values
             total_ext_values = init_ext_values
             total_log_probs = init_log_probs
@@ -119,16 +118,16 @@ if __name__ == '__main__':
                     feedback = parent.recv()
                     infos.append(feedback["info"])
                     total_ext_rewards[worker_id, t] = feedback["reward"]
-                    total_dones[worker_id, t] = feedback["real_done"]
-                    total_episode_dones[worker_id, t] = feedback["game_done"]
+                    total_dones[worker_id, t] = feedback["done"]
                     next_states[worker_id] = feedback["next_state"]
                     total_next_obs[worker_id, t] = feedback["next_state"][-1, ...]
 
                 episode_ext_reward += total_ext_rewards[0, t]
-                if total_episode_dones[0, t]:
+                if total_dones[0, t]:
                     episode += 1
                     x_pos = infos[0]["x_pos"]
-                    logger.log_episode(episode, episode_ext_reward, x_pos)
+                    stage = infos[0]["stage"]
+                    logger.log_episode(episode, episode_ext_reward, x_pos, stage)
                     episode_ext_reward = 0
 
             total_next_obs = concatenate(total_next_obs)
@@ -158,6 +157,6 @@ if __name__ == '__main__':
 
     else:
         logger = Logger(brain, experiment=None, **config)
-        checkpoint = logger.load_weights()
-        play = Play(config["env_name"], brain, checkpoint)
+        logger.load_weights()
+        play = Play(config["env_name"], brain)
         play.evaluate()
