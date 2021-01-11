@@ -22,8 +22,6 @@ class Logger:
         self.running_act_prob = 0
         self.running_training_logs = dict()
         self.x_pos = 0
-        self.visited_stages = set([1])
-        self.max_episode_reward = -np.inf
         self.moving_avg_window = 10
         self.moving_weights = np.repeat(1.0, self.moving_avg_window) / self.moving_avg_window
         self.last_10_ep_rewards = deque(maxlen=10)
@@ -64,9 +62,7 @@ class Logger:
         self.experiment.log_metric("Episode Ext Reward", self.episode_ext_reward, self.episode)
         self.experiment.log_metric("Running Episode Ext Reward", self.running_ext_reward, self.episode)
         self.experiment.log_metric("Position", self.x_pos, self.episode)
-        self.experiment.log_metric("Visited stages", len(list(self.visited_stages)), self.episode)
         self.experiment.log_metric("Running last 10 Ext Reward", self.running_last_10_ext_r, self.episode)
-        self.experiment.log_metric("Max Episode Ext Reward", self.max_episode_reward, self.episode)
         self.experiment.log_metric("Running Action Probability", self.running_act_prob, iteration)
         self.experiment.log_metric("Running Intrinsic Reward", self.running_int_reward, iteration)
         self.experiment.log_metric("Running PG Loss", self.running_training_logs["pg_loss"], iteration)
@@ -87,7 +83,6 @@ class Logger:
                   "EP_Reward: {}| "
                   "EP_Running_Reward: {:.2f}| "
                   "Position: {:.1f}| "
-                  "Visited_Stages: {}| "
                   "Iter_Duration: {:.3f}| "
                   "Time: {} "
                   .format(iteration,
@@ -95,7 +90,6 @@ class Logger:
                           self.episode_ext_reward,
                           self.running_ext_reward,
                           self.x_pos,
-                          self.visited_stages,
                           self.duration,
                           datetime.datetime.now().strftime("%H:%M:%S")
                           )
@@ -104,10 +98,6 @@ class Logger:
 
     def log_episode(self, *args):
         self.episode, self.episode_ext_reward, x_pos, visited_stages = args
-
-        self.visited_stages.add(visited_stages)
-
-        self.max_episode_reward = max(self.max_episode_reward, self.episode_ext_reward)
 
         self.running_ext_reward = self.exp_avg(self.running_ext_reward, self.episode_ext_reward)
         self.x_pos = self.exp_avg(self.x_pos, x_pos)
@@ -134,7 +124,6 @@ class Logger:
                     "running_act_prob": self.running_act_prob,
                     "running_training_logs": self.running_training_logs,
                     "x_pos": self.x_pos,
-                    "visited_stages": self.visited_stages
                     },
                    "Models/" + self.log_dir + "/params.pth")
 
@@ -151,6 +140,5 @@ class Logger:
         self.running_training_logs = checkpoint["running_training_logs"]
         self.running_act_prob = checkpoint["running_act_prob"]
         self.running_int_reward = checkpoint["running_int_reward"]
-        self.visited_stages = checkpoint["visited_stages"]
 
         return checkpoint["iteration"], self.episode

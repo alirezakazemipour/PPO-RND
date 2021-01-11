@@ -130,7 +130,7 @@ dmypy.json
 
 .idea/
 *.png
-*.avi
+#*.avi
 .*gif
 Logs/
-Models/
+#Models/

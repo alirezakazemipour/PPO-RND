@@ -3,7 +3,7 @@ import cv2
 import gym
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
-from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
+from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 
 
 def preprocessing(x):
@@ -42,7 +42,7 @@ def explained_variance(ypred, y):
 
 def make_mario(env_id, max_episode_steps, sticky_action=True, max_and_skip=True):
     env = gym_super_mario_bros.make(env_id)
-    env = JoypadSpace(env, COMPLEX_MOVEMENT)
+    env = JoypadSpace(env, SIMPLE_MOVEMENT)
     env.spec.max_episode_steps = max_episode_steps * 4
     assert 'SuperMarioBros' in env.spec.id
     if sticky_action:

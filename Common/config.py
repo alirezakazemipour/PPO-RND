@@ -6,7 +6,7 @@ def get_params():
         description="Variable parameters based on the configuration of the machine or user's choice")
 
     parser.add_argument("--n_workers", default=2, type=int, help="Number of parallel environments.")
-    parser.add_argument("--interval", default=50, type=int,
+    parser.add_argument("--interval", default=150, type=int,
                         help="The interval specifies how often different parameters should be saved and printed,"
                              " counted by iterations.")
     parser.add_argument("--do_train", action="store_false",
@@ -23,13 +23,13 @@ def get_params():
      https://arxiv.org/abs/1810.12894    
     """
     # region default parameters
-    default_params = {"env_name": "SuperMarioBros-v0",
+    default_params = {"env_name": "SuperMarioBros-1-1-v0",
                       "state_shape": (4, 84, 84),
                       "obs_shape": (1, 84, 84),
                       "total_rollouts_per_env": int(30e3),
                       "max_frames_per_episode": 4500,  # 4500 * 4 = 18K :D
                       "rollout_length": 128,
-                      "n_epochs": 4,
+                      "n_epochs": 8,
                       "n_mini_batch": 4,
                       "lr": 1e-4,
                       "ext_gamma": 0.999,
@@ -38,7 +38,7 @@ def get_params():
                       "ext_adv_coeff": 2,
                       "int_adv_coeff": 1,
                       "ent_coeff": 0.001,
-                      "clip_range": 0.1,
+                      "clip_range": 0.2,
                       "pre_normalization_steps": 50,
                       "max_grad_norm": 0.5,
                       }

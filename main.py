@@ -5,7 +5,7 @@ import numpy as np
 from Brain import Brain
 from nes_py.wrappers import JoypadSpace
 import gym_super_mario_bros
-from gym_super_mario_bros.actions import COMPLEX_MOVEMENT
+from gym_super_mario_bros.actions import SIMPLE_MOVEMENT
 from tqdm import tqdm
 
 
@@ -17,7 +17,7 @@ if __name__ == '__main__':
     config = get_params()
 
     test_env = gym_super_mario_bros.make(config["env_name"])
-    test_env = JoypadSpace(test_env, COMPLEX_MOVEMENT)
+    test_env = JoypadSpace(test_env, SIMPLE_MOVEMENT)
     config.update({"n_actions": test_env.action_space.n})
     test_env.close()
 
