@@ -1,15 +1,17 @@
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg?style=flat-square)](http://makeapullrequest.com)  
 # Random Network Distillation
-
 > Visit [RNN_Policy branch](https://github.com/alirezakazemipour/PPO-RND/tree/RNN_Policy) for RNN Policy implementation instead of CNN Policy.
 
 Implementation of the **Exploration by Random Network Distillation** on Montezuma's Revenge Atari game. The algorithm simply consists of generating intrinsic rewards based on the novelty that the agent faces and using these rewards to reduce the sparsity of the game. The main algorithm to train the agent is **Proximal Policy Optimization** which is able to combine extrinsic and intrinsic rewards easily and has fairly less variance during training.
 
+## [Update]
+Implementation for SuperMarioBros-1-1-v0 has been added! Visit [mario branch](https://github.com/alirezakazemipour/PPO-RND/tree/mario) for the code.
+
 ## Demo
 
-RNN Policy| CNN Policy
-:-----------------------:|:-----------------------:|
-![](demo/RNN_Policy.gif)| ![](demo/CNN_Policy.gif)
+RNN Policy| CNN Policy| Super Mario Bros
+:-----------------------:|:-----------------------:|:-----------------------:
+![](demo/RNN_Policy.gif)| ![](demo/CNN_Policy.gif)| ![](demo/mario.gif) 
 
 ## Results
 RNN Policy| CNN Policy
@@ -38,7 +40,7 @@ number of epochs	   | 4
 number of mini batches  | 4
 learning rate                      | 1e-4
 extrinsic gamma		    | 0.999
-extrinsic gamma		    | 0.99
+intrinsic gamma		    | 0.99
 lambda		                  | 0.95
 extrinsic advantage coefficient       | 2
 intrinsic advantage coefficient        | 1
@@ -99,7 +101,7 @@ pip3 install -r requirements.txt
 ## Usage
 ### How to run
 ```bash
-usage: main.py [-h] [--n_workers N_WORKERS] [--interval INTERVAL] [--do_train]
+usage: main.py [-h] [--n_workers N_WORKERS] [--interval INTERVAL] [--do_test]
                [--render] [--train_from_scratch]
 
 Variable parameters based on the configuration of the machine or user's choice
@@ -110,7 +112,7 @@ optional arguments:
                         Number of parallel environments.
   --interval INTERVAL   The interval specifies how often different parameters
                         should be saved and printed, counted by iterations.
-  --do_train             The flag determines whether to train the agent or play
+  --do_test             The flag determines whether to train the agent or play
                         with it.
   --render              The flag determines whether to render each agent or
                         not.
@@ -128,7 +130,7 @@ python3 main.py --n_workers=128 --interval=100 --train_from_scratch
 ```
 - **If you want  the agent to play, execute the following:**
 ```shell
-python3 main.py --do_train
+python3 main.py --do_test
 ```
 ### Hardware requirements
 - **The whole training procedure with 32 workers can be done on Google Colab and it takes 2 days of training, thus a machine with a similar configuration would be sufficient, but if you need a more powerful free online GPU provider and to increase the number of environments to 128 and above, take a look at [paperspace.com](paperspace.com)**.
