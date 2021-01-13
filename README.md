@@ -5,13 +5,13 @@
 Implementation of the **Exploration by Random Network Distillation** on Montezuma's Revenge Atari game. The algorithm simply consists of generating intrinsic rewards based on the novelty that the agent faces and using these rewards to reduce the sparsity of the game. The main algorithm to train the agent is **Proximal Policy Optimization** which is able to combine extrinsic and intrinsic rewards easily and has fairly less variance during training.
 
 ## [Update]
-Implementaion for SuperMarioBros-1-1-v0 has been added! Visit [mario branch](https://github.com/alirezakazemipour/PPO-RND/tree/mario) for the code.
+Implementation for SuperMarioBros-1-1-v0 has been added! Visit [mario branch](https://github.com/alirezakazemipour/PPO-RND/tree/mario) for the code.
 
 ## Demo
 
 RNN Policy| CNN Policy| Super Mario Bros
-:-----------------------:|:-----------------------:|:-----------------------:|
-![](demo/RNN_Policy.gif)| ![](demo/CNN_Policy.gif)| ![](https://github.com/alirezakazemipour/PPO-RND/tree/mario/Demo/mario.gif)
+:-----------------------:|:-----------------------:|:-----------------------:
+![](demo/RNN_Policy.gif)| ![](demo/CNN_Policy.gif)| ![](demo/mario.gif) 
 
 ## Results
 RNN Policy| CNN Policy
