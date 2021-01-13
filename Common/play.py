@@ -4,7 +4,7 @@ import time
 
 
 class Play:
-    def __init__(self, env, agent, max_episode=20):
+    def __init__(self, env, agent, max_episode=1):
         self.env = make_mario(env, 4500, sticky_action=False)
         self.max_episode = max_episode
         self.agent = agent
@@ -12,14 +12,14 @@ class Play:
         self.fourcc = cv2.VideoWriter_fourcc(*'XVID')
         if not os.path.exists("Results"):
             os.mkdir("Results")
-        # self.VideoWriter = cv2.VideoWriter("Results/" + "result" + ".avi", self.fourcc, 15.0,
-        #                                    self.env.observation_space.shape[1::-1])
+        self.VideoWriter = cv2.VideoWriter("Results/" + "result" + ".avi", self.fourcc, 20.0,
+                                           self.env.observation_space.shape[1::-1])
 
     def evaluate(self):
         stacked_states = np.zeros((4, 84, 84), dtype=np.uint8)
-        mean_ep_reward = []
+        # mean_ep_reward = []
         # obs, int_rewards = [], []
-        success_rate = 0
+        # success_rate = 0
         for ep in range(self.max_episode):
             s = self.env.reset()
             stacked_states = stack_states(stacked_states, s, True)
@@ -29,11 +29,8 @@ class Play:
                 action, *_ = self.agent.get_actions_and_values(stacked_states)
                 s_, r, done, info = self.env.step(action[0])
                 if info["flag_get"]:
-                    #     print("\n---------------------------------------")
-                    #     print("🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩\n"
-                    #           f"Episode: {ep}")
-                    #     print("---------------------------------------")
-                    success_rate += 1
+                    print("🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩🚩")
+                # success_rate += 1
                 episode_reward += r
 
                 stacked_states = stack_states(stacked_states, s_, False)
@@ -42,14 +39,14 @@ class Play:
                 # int_rewards.append(int_reward)
                 # obs.append(s_)
 
-                # self.VideoWriter.write(cv2.cvtColor(s_, cv2.COLOR_RGB2BGR))
-                # self.env.render()
-                # time.sleep(0.01)
-            # print(f"episode reward:{episode_reward}| "
-            #       f"pos:{info['x_pos']}")
-            mean_ep_reward.append(episode_reward)
-        print(f"Mean episode reward:{sum(mean_ep_reward) / len(mean_ep_reward):0.1f}\n"
-              f"Success rate: {(success_rate / self.max_episode) * 100}%")
+                self.VideoWriter.write(cv2.cvtColor(s_, cv2.COLOR_RGB2BGR))
+                self.env.render()
+                time.sleep(0.01)
+            print(f"episode reward:{episode_reward}| "
+                  f"pos:{info['x_pos']}")
+            # mean_ep_reward.append(episode_reward)
+        # print(f"Mean episode reward:{sum(mean_ep_reward) / len(mean_ep_reward):0.1f}\n"
+        #       f"Success rate: {(success_rate / self.max_episode) * 100}%")
         self.env.close()
-        # self.VideoWriter.release()
+        self.VideoWriter.release()
         cv2.destroyAllWindows()
