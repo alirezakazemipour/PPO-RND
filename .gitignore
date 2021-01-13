@@ -129,8 +129,3 @@ dmypy.json
 .pyre/
 
 .idea/
-*.png
-#*.avi
-.*gif
-Logs/
-#Models/

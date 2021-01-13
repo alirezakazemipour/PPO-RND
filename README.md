@@ -35,7 +35,7 @@ Parameters          | Value
 total rollouts per environment  | 30000
 max frames per episode  | 4500
 rollout length       	       | 128
-number of environments| 128
+number of environments| 32
 number of epochs	   | 4
 number of mini batches  | 4
 learning rate                      | 1e-4
