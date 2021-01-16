@@ -28,10 +28,7 @@ if __name__ == '__main__':
 
     if config["do_train"]:
 
-        experiment = Experiment(
-            api_key="mpH0nJorSD143jz45qMvMYKZI",
-            project_name="rnd",
-            workspace="alirezakazemipour")
+        experiment = Experiment() # Add your https://www.comet.ml/site configs here.
 
         logger = Logger(brain, experiment=experiment, **config)
 
