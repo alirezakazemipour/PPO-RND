@@ -4,7 +4,7 @@ from torch import from_numpy
 import numpy as np
 from numpy import concatenate  # Make coder faster.
 from torch.optim.adam import Adam
-from Common.utils import mean_of_list, RunningMeanStd, clip_grad_norm_
+from Common.utils import mean_of_list, RunningMeanStd
 
 torch.backends.cudnn.benchmark = True
 
@@ -85,8 +85,7 @@ class Brain:
         self.state_rms.update(total_next_obs)
         total_next_obs = ((total_next_obs - self.state_rms.mean) / (self.state_rms.var ** 0.5)).clip(-5, 5)
 
-        prev_dones = np.roll(dones, 1, -1)
-        hidden_states *= (1 - concatenate(prev_dones).reshape((-1, 1)))
+        hidden_states *= (1 - concatenate(dones).reshape((-1, 1)))
 
         pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies = [], [], [], [], []
         for epoch in range(self.config["n_epochs"]):
@@ -127,8 +126,7 @@ class Brain:
     def optimize(self, loss):
         self.optimizer.zero_grad()
         loss.backward()
-        clip_grad_norm_(self.total_trainable_params)
-        # torch.nn.utils.clip_grad_norm_(self.total_trainable_params, 0.5)
+        torch.nn.utils.clip_grad_norm_(self.total_trainable_params, self.config["max_grad_norm"])
         self.optimizer.step()
 
     def get_gae(self, rewards, values, next_values, dones, gamma):

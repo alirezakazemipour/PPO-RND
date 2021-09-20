@@ -94,7 +94,8 @@ if __name__ == '__main__':
         init_log_probs = np.zeros(rollout_base_shape)
         init_next_states = np.zeros((rollout_base_shape[0],) + config["state_shape"], dtype=np.uint8)
         init_next_obs = np.zeros(rollout_base_shape + config["obs_shape"], dtype=np.uint8)
-        hidden_states = np.zeros((rollout_base_shape + (256,)))
+        init_hidden_states = np.zeros((rollout_base_shape + (256,)))
+        init_next_hidden_states = np.zeros((rollout_base_shape[0], 256))
 
         logger.on()
         episode_ext_reward = 0
@@ -111,15 +112,20 @@ if __name__ == '__main__':
             total_log_probs = init_log_probs
             next_states = init_next_states
             total_next_obs = init_next_obs
+            total_hidden_states = init_hidden_states
+            next_hidden_states = init_next_hidden_states
+
             for t in range(T):
                 # region receive states
                 for worker_id, parent in enumerate(parents):
                     total_states[worker_id, t] = parent.recv()
                 # endregion
 
+                total_hidden_states[:, t, :] = next_hidden_states
+
                 total_actions[:, t], total_int_values[:, t], total_ext_values[:, t], total_log_probs[:, t], \
-                total_action_probs[:, t], hidden_states[:, (t + 1) % T, :] = brain.get_actions_and_values(
-                    total_states[:, t], total_dones[:, (t - 1) % T], hidden_states[:, t, :], batch=True)
+                total_action_probs[:, t], next_hidden_states = brain.get_actions_and_values(
+                    total_states[:, t], total_dones[:, t], total_hidden_states[:, t, :], batch=True)
 
                 # region send actions
                 for parent, a in zip(parents, total_actions[:, t]):
@@ -151,7 +157,7 @@ if __name__ == '__main__':
             total_int_rewards = brain.calculate_int_rewards(total_next_obs)
             _, next_int_values, next_ext_values, *_ = brain.get_actions_and_values(next_states,
                                                                                    total_dones[:, -1],
-                                                                                   hidden_states[:, 0, :],
+                                                                                   next_hidden_states,
                                                                                    batch=True)
 
             total_int_rewards = brain.normalize_int_rewards(total_int_rewards)
@@ -167,7 +173,7 @@ if __name__ == '__main__':
                                         next_int_values=next_int_values,
                                         next_ext_values=next_ext_values,
                                         total_next_obs=total_next_obs,
-                                        hidden_states=concatenate(hidden_states))
+                                        hidden_states=concatenate(total_hidden_states))
 
             logger.log_iteration(iteration,
                                  training_logs,

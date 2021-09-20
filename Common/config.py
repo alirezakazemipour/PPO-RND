@@ -40,6 +40,7 @@ def get_params():
                       "ent_coeff": 0.001,
                       "clip_range": 0.1,
                       "pre_normalization_steps": 50,
+                      "max_grad_norm": 0.5
                       }
 
     # endregion
