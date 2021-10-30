@@ -138,7 +138,7 @@ python3 main.py --do_test
 1. [_Exploration by Random Network Distillation_, Burda et al., 2018](https://arxiv.org/abs/1810.12894)
 2. [_Proximal Policy Optimization Algorithms_, Schulman et al., 2017](https://arxiv.org/abs/1707.06347)
 
-## Papers Cited This Repo
+## Papers cited this repo
 1. [_Benchmarking the Spectrum of Agent Capabilities_, D. Hafner, 2021](https://arxiv.org/pdf/2109.06780.pdf) [[Code](https://github.com/danijar/crafter)]
 
 ## Acknowledgement 
