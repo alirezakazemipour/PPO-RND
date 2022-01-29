@@ -6,7 +6,7 @@
 Implementation of the **Exploration by Random Network Distillation** on Montezuma's Revenge Atari game. The algorithm simply consists of generating intrinsic rewards based on the novelty that the agent faces and using these rewards to reduce the sparsity of the game. The main algorithm to train the agent is **Proximal Policy Optimization** which is able to combine extrinsic and intrinsic rewards easily and has fairly less variance during training.
 
 ## Update [29 Jan 2022]
-- After speculating the _RNN_ policy, I found some cirical points that cast a shadow over the correctness of that part (in spite of obtaining good results from it) thus, please only consider the _CNN_ based implementaions (especially the Super Mario Bros) as your preference for now, until I find a free time to perform sanity-checks on the _RNN_ code to approve it's perfectly correct. 
+- After speculating the _RNN_ policy, I found some critical points that cast a shadow over the correctness of that part (in spite of obtaining good results from it) thus, please only consider the _CNN_ based implementations (especially the Super Mario Bros) as your preference for now, until I find a free time to perform sanity-checks on the _RNN_ code to approve it's perfectly correct. 
 
 
 ## Demo
