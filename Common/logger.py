@@ -28,7 +28,7 @@ class Logger:
         self.last_10_ep_rewards = deque(maxlen=10)
         self.running_last_10_ext_r = 0  # It is not correct but does not matter.
 
-        if self.config["do_test"] and self.config["train_from_scratch"]:
+        if not self.config["do_test"] and self.config["train_from_scratch"]:
             self.create_wights_folder()
             self.log_params()
 

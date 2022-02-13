@@ -26,7 +26,7 @@ if __name__ == '__main__':
     brain = Brain(**config)
     logger = Logger(brain, **config)
 
-    if config["do_test"]:
+    if not config["do_test"]:
         if not config["train_from_scratch"]:
             checkpoint = logger.load_weights()
             brain.set_from_checkpoint(checkpoint)
