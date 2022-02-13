@@ -1,7 +1,4 @@
-from Common.runner import Worker
-from Common.play import Play
-from Common.config import get_params
-from Common.logger import Logger
+from Common import Worker, Play, Logger, get_params, set_random_seeds
 from torch.multiprocessing import Process, Pipe
 import numpy as np
 from Brain.brain import Brain
@@ -9,12 +6,9 @@ import gym
 from tqdm import tqdm
 
 
-def run_workers(worker, conn):
-    worker.step(conn)
-
-
 if __name__ == '__main__':
     config = get_params()
+    set_random_seeds(config["seed"])
 
     test_env = gym.make(config["env_name"])
     config.update({"n_actions": test_env.action_space.n})
@@ -28,7 +22,7 @@ if __name__ == '__main__':
     brain = Brain(**config)
     logger = Logger(brain, **config)
 
-    if config["do_test"]:
+    if not config["do_test"]:
         if not config["train_from_scratch"]:
             checkpoint = logger.load_weights()
             brain.set_from_checkpoint(checkpoint)
@@ -46,15 +40,15 @@ if __name__ == '__main__':
             visited_rooms = set([1])
 
         # region Start up workers
-        workers = [Worker(i, **config) for i in range(config["n_workers"])]
 
         parents = []
-        for worker in workers:
+        workers = []
+        for i in range(config["n_workers"]):
             parent_conn, child_conn = Pipe()
-            p = Process(target=run_workers, args=(worker, child_conn,))
-            p.daemon = True
             parents.append(parent_conn)
-            p.start()
+            w = Worker(i, child_conn, **config)
+            workers.append(w)
+            w.start()
         # endregion
 
         # region PreNormalization
@@ -125,7 +119,7 @@ if __name__ == '__main__':
 
                 total_actions[:, t], total_int_values[:, t], total_ext_values[:, t], total_log_probs[:, t], \
                 total_action_probs[:, t], next_hidden_states = brain.get_actions_and_values(
-                    total_states[:, t], total_dones[:, t], total_hidden_states[:, t, :], batch=True)
+                    total_states[:, t], total_hidden_states[:, t, :], batch=True)
 
                 # region send actions
                 for parent, a in zip(parents, total_actions[:, t]):
@@ -139,6 +133,7 @@ if __name__ == '__main__':
                     infos.append(info)
                     total_ext_rewards[worker_id, t] = r
                     total_dones[worker_id, t] = d
+                    next_hidden_states[worker_id] *= (1 - d)
                     next_states[worker_id] = s_
                     total_next_obs[worker_id, t] = s_[-1, ...]
                 # endregion
@@ -156,7 +151,6 @@ if __name__ == '__main__':
             total_next_obs = concatenate(total_next_obs)
             total_int_rewards = brain.calculate_int_rewards(total_next_obs)
             _, next_int_values, next_ext_values, *_ = brain.get_actions_and_values(next_states,
-                                                                                   total_dones[:, -1],
                                                                                    next_hidden_states,
                                                                                    batch=True)
 
@@ -178,8 +172,8 @@ if __name__ == '__main__':
             logger.log_iteration(iteration,
                                  training_logs,
                                  total_int_rewards[0].mean(),
-                                 total_action_probs[0].max(-1).mean())
-
+                                 total_action_probs[0].max(-1).mean()
+                                 )
     else:
         checkpoint = logger.load_weights()
         play = Play(config["env_name"], brain, checkpoint)

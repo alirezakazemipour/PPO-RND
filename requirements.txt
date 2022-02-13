@@ -1,0 +1,6 @@
+gym == 0.19.0
+matplotlib >= 3.3.2
+numpy >= 1.19.2
+opencv_contrib_python >= 4.4.0.44
+torch >= 1.6.0
+tqdm >= 4.50.0

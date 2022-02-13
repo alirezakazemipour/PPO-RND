@@ -9,7 +9,7 @@ def get_params():
     parser.add_argument("--interval", default=50, type=int,
                         help="The interval specifies how often different parameters should be saved and printed,"
                              " counted by iterations.")
-    parser.add_argument("--do_test", action="store_false",
+    parser.add_argument("--do_test", action="store_true",
                         help="The flag determines whether to train the agent or play with it.")
     parser.add_argument("--render", action="store_true",
                         help="The flag determines whether to render each agent or not.")
@@ -40,7 +40,8 @@ def get_params():
                       "ent_coeff": 0.001,
                       "clip_range": 0.1,
                       "pre_normalization_steps": 50,
-                      "max_grad_norm": 0.5
+                      "max_grad_norm": 0.5,
+                      "seed": 123
                       }
 
     # endregion

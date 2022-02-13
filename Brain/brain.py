@@ -30,12 +30,8 @@ class Brain:
 
         self.mse_loss = torch.nn.MSELoss()
 
-    def get_actions_and_values(self, state, done, hidden_state, batch=False):
-        if batch:
-            hidden_state *= (1 - done.reshape(-1, 1))
-
-        else:
-            hidden_state *= (1 - done)
+    def get_actions_and_values(self, state, hidden_state, batch=False):
+        if not batch:
             state = np.expand_dims(state, 0)
 
         state = from_numpy(state).to(self.device)
@@ -84,8 +80,6 @@ class Brain:
 
         self.state_rms.update(total_next_obs)
         total_next_obs = ((total_next_obs - self.state_rms.mean) / (self.state_rms.var ** 0.5)).clip(-5, 5)
-
-        hidden_states *= (1 - concatenate(dones).reshape((-1, 1)))
 
         pg_losses, ext_v_losses, int_v_losses, rnd_losses, entropies = [], [], [], [], []
         for epoch in range(self.config["n_epochs"]):

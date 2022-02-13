@@ -1,9 +1,12 @@
 from Common.utils import *
+from torch.multiprocessing import Process
 
 
-class Worker:
-    def __init__(self, id, **config):
+class Worker(Process):
+    def __init__(self, id, conn, **config):
+        super(Worker, self).__init__()
         self.id = id
+        self.conn = conn
         self.config = config
         self.env_name = self.config["env_name"]
         self.max_episode_steps = self.config["max_frames_per_episode"]
@@ -22,11 +25,11 @@ class Worker:
         state = self.env.reset()
         self._stacked_states = stack_states(self._stacked_states, state, True)
 
-    def step(self, conn):
+    def run(self):
         t = 1
         while True:
-            conn.send(self._stacked_states)
-            action = conn.recv()
+            self.conn.send(self._stacked_states)
+            action = self.conn.recv()
             next_state, r, d, info = self.env.step(action)
             t += 1
             if t % self.max_episode_steps == 0:
@@ -34,7 +37,7 @@ class Worker:
             if self.config["render"]:
                 self.render()
             self._stacked_states = stack_states(self._stacked_states, next_state, False)
-            conn.send((self._stacked_states, np.sign(r), d, info))
+            self.conn.send((self._stacked_states, np.sign(r), d, info))
             if d:
                 self.reset()
                 t = 1

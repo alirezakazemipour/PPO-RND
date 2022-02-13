@@ -3,7 +3,15 @@ import cv2
 import gym
 from copy import deepcopy
 import torch
-from torch._six import inf
+import random
+import os
+
+
+def set_random_seeds(seed):
+    os.environ["PYTHONHASHSEED"] = str(seed)
+    np.random.seed(seed)
+    random.seed(seed)
+    torch.random.manual_seed(seed)
 
 
 def mean_of_list(func):
