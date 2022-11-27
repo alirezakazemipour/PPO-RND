@@ -122,7 +122,7 @@ optional arguments:
 ```shell
 python3 main.py --n_workers=128 --interval=100
 ```
-- **If you want to keep training your previous run, execute the following:**
+- **If you want to keep training your previous run (deactivating training from scratch), execute the following:**
 ```shell
 python3 main.py --n_workers=128 --interval=100 --train_from_scratch
 ```
