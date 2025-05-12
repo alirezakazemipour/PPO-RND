@@ -136,6 +136,18 @@ python3 main.py --do_test
 1. [_Exploration by Random Network Distillation_, Burda et al., 2018](https://arxiv.org/abs/1810.12894)
 2. [_Proximal Policy Optimization Algorithms_, Schulman et al., 2017](https://arxiv.org/abs/1707.06347)
 
+## How to cite
+```tex
+@misc{ppo-rnd,
+  author = {Kazemipour, Alireza},
+  title = {An Unofficial Implementation of Exploration by Random Network Distillation},
+  year = {2020},
+  publisher = {GitHub},
+  journal = {GitHub repository},
+  howpublished = {\url{https://github.com/alirezakazemipour/PPO-RND}}
+}
+```
+
 ## Papers cited this repo
 1. [_Benchmarking the Spectrum of Agent Capabilities_, D. Hafner, 2021](https://arxiv.org/pdf/2109.06780.pdf) [[Code](https://github.com/danijar/crafter)]
 
